@@ -1,6 +1,6 @@
 // HTTP + WebSocket server. Serves the built client in production and relays
 // live positions between members of in-memory rooms.
-import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import { createServer, type ServerResponse } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
@@ -43,10 +43,25 @@ function json(res: ServerResponse, status: number, body: unknown) {
   res.end(JSON.stringify(body));
 }
 
-async function serveStatic(req: IncomingMessage, res: ServerResponse) {
+/**
+ * Parse a request target without ever throwing. A raw target like `//` is read as a
+ * protocol-relative URL by `new URL(raw, base)` and throws, which in an async handler
+ * becomes an unhandled rejection that kills the whole process (and every live room).
+ * Prefixing the origin keeps it a plain path.
+ */
+function parseUrl(raw: string | undefined): URL | null {
+  const target = raw ?? '/';
+  try {
+    return new URL(target.startsWith('/') ? `http://x${target}` : `http://x/${target}`);
+  } catch {
+    return null;
+  }
+}
+
+async function serveStatic(url: URL, res: ServerResponse) {
   let urlPath: string;
   try {
-    urlPath = decodeURIComponent(new URL(req.url ?? '/', 'http://x').pathname);
+    urlPath = decodeURIComponent(url.pathname);
   } catch {
     // Malformed %-escapes (e.g. /%E0%A4%A) must not become an unhandled rejection that kills the process.
     return json(res, 400, { error: 'bad path' });
@@ -73,7 +88,8 @@ async function serveStatic(req: IncomingMessage, res: ServerResponse) {
 }
 
 const server = createServer(async (req, res) => {
-  const url = new URL(req.url ?? '/', 'http://x');
+  const url = parseUrl(req.url);
+  if (!url) return json(res, 400, { error: 'bad url' });
   if (url.pathname === '/api/rooms' && req.method === 'POST') {
     const ip = clientIp(req, behindProxy);
     if (!allowCreate(ip)) return json(res, 429, { error: 'too many rooms, try again later' });
@@ -86,7 +102,7 @@ const server = createServer(async (req, res) => {
     return room ? json(res, 200, { id: room.id, players: room.members.size }) : json(res, 404, { error: 'no_room' });
   }
   if (url.pathname === '/api/health') return json(res, 200, { ok: true, rooms: registry.rooms.size });
-  if (SERVE_STATIC && req.method === 'GET') return serveStatic(req, res);
+  if (SERVE_STATIC && req.method === 'GET') return serveStatic(url, res);
   json(res, 404, { error: 'not found' });
 });
 
@@ -94,7 +110,7 @@ const server = createServer(async (req, res) => {
 const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 2048 });
 
 wss.on('connection', (ws: WebSocket, req) => {
-  const roomId = new URL(req.url ?? '', 'http://x').searchParams.get('room') ?? '';
+  const roomId = parseUrl(req.url)?.searchParams.get('room') ?? '';
   const room: Room | undefined = registry.get(roomId);
   const conn: Conn = {
     send: (msg) => ws.readyState === ws.OPEN && ws.send(JSON.stringify(msg)),
