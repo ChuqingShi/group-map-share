@@ -405,3 +405,9 @@ a.btn { display: inline-block; text-align: center; text-decoration: none; color:
 
 /* Placeholder text readable on the cream inputs (browser defaults are about 4.3:1). */
 input::placeholder { color: #5b6275; opacity: 1; }
+.quest-intro .controls, .quest-intro + .controls { flex-wrap: wrap; }
+.quest-intro .controls .btn { flex: 1 1 auto; }
+
+/* The event name takes whatever room the buttons leave and shortens with an ellipsis, so Invite never gets pushed off screen. */
+button.chip { flex: 1 1 0; min-width: 0; max-width: none; }
+.hud-actions { flex: none; }

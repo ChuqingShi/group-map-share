@@ -93,3 +93,18 @@ scenario('8. phone 360x640: no sideways scroll, action bar buttons fully on scre
   for (const c of crowd) c.close();
   ann.assertNoErrors();
 });
+
+scenario('8b. phone 360x640: a long event name shrinks to fit, the top bar buttons never get pushed off screen', async (s) => {
+  const made = await fetch(`${s.baseUrl}/api/rooms`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ name: 'The very long name of our team lunch event' }),
+  });
+  const { id } = (await made.json()) as { id: string };
+  const ann = await s.player('Ann', SPOTS.ann, { viewport: { width: 360, height: 640 }, roomUrl: `${s.baseUrl}/r/${id}` });
+  await waitForCrew(ann, 1);
+  await eventually(async () => assert.match(await ann.tid('event-title').innerText(), /\S/), { message: 'event title shown' });
+  await assertNoHorizontalOverflow(ann, 'top bar with a long event name');
+  await assertInsideViewport(ann, ['btn-events', 'btn-settings', 'btn-invite'], 'top bar');
+  ann.assertNoErrors();
+});

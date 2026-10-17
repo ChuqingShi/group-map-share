@@ -498,7 +498,7 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
         <div className="hud-actions">
           <button className="btn-icon" title="Show everyone" aria-label="Show everyone" onClick={() => mapRef.current?.fitAll()}>🔭</button>
           <button className="btn-icon" title="Settings" aria-label="Settings" data-testid="btn-settings" onClick={() => setPanel('settings')}>⚙️</button>
-          <button className="btn btn-small" onClick={() => setShowInvite(true)}>➕ Invite</button>
+          <button className="btn btn-small" data-testid="btn-invite" onClick={() => setShowInvite(true)}>➕ Invite</button>
         </div>
       </header>
 
