@@ -70,6 +70,27 @@ test('two clients in one room see each other move, then leave', async () => {
   a.ws.close();
 });
 
+test('malformed URL escapes get a 400 and do not crash the production static server', async () => {
+  const port = PORT + 1000;
+  const prod = spawn(process.execPath, ['server/index.ts'], {
+    env: { ...process.env, NODE_ENV: 'production', GMS_PORT: String(port), GMS_HOST: '127.0.0.1' },
+  });
+  try {
+    const url = `http://127.0.0.1:${port}`;
+    for (let i = 0; i < 50; i++) {
+      try {
+        if ((await fetch(`${url}/api/health`)).ok) break;
+      } catch { /* not up yet */ }
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    assert.equal((await fetch(`${url}/%E0%A4%A`)).status, 400);
+    assert.equal((await fetch(`${url}/..%2f..%2fpackage.json`)).status < 500, true);
+    assert.equal((await fetch(`${url}/api/health`)).status, 200, 'server must still be alive');
+  } finally {
+    prod.kill();
+  }
+});
+
 test('unknown room is rejected', async () => {
   const c = client('doesnotexist');
   const err = await c.waitFor((m) => m.t === 'error');

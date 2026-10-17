@@ -128,8 +128,8 @@ function RoomPage({ roomId, onExit }: { roomId: string; onExit: () => void }) {
           {live ? `${players.length} in room` : room.status === 'reconnecting' ? 'Reconnecting…' : profile ? 'Connecting…' : 'Room'}
         </div>
         <div className="hud-actions">
-          <button className="btn-icon" title="Map legend" onClick={() => setShowLegend((v) => !v)}>🗺️</button>
-          <button className="btn-icon" title="Show everyone" onClick={() => mapRef.current?.fitAll()}>🔭</button>
+          <button className="btn-icon" title="Map legend" aria-label="Map legend" aria-pressed={showLegend} onClick={() => setShowLegend((v) => !v)}>🗺️</button>
+          <button className="btn-icon" title="Show everyone" aria-label="Show everyone" onClick={() => mapRef.current?.fitAll()}>🔭</button>
           <button className="btn btn-small" onClick={() => setShowInvite(true)}>➕ Invite</button>
         </div>
       </header>

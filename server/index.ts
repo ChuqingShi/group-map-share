@@ -2,7 +2,7 @@
 // live positions between members of in-memory rooms.
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
-import { extname, join, normalize, resolve } from 'node:path';
+import { extname, join, normalize, resolve, sep } from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { RoomRegistry, type Conn, type Room } from './rooms.ts';
 import { clientIp, serverConfig } from './config.ts';
@@ -44,9 +44,15 @@ function json(res: ServerResponse, status: number, body: unknown) {
 }
 
 async function serveStatic(req: IncomingMessage, res: ServerResponse) {
-  const urlPath = decodeURIComponent(new URL(req.url ?? '/', 'http://x').pathname);
+  let urlPath: string;
+  try {
+    urlPath = decodeURIComponent(new URL(req.url ?? '/', 'http://x').pathname);
+  } catch {
+    // Malformed %-escapes (e.g. /%E0%A4%A) must not become an unhandled rejection that kills the process.
+    return json(res, 400, { error: 'bad path' });
+  }
   let file = normalize(join(STATIC_DIR, urlPath));
-  if (!file.startsWith(STATIC_DIR)) return json(res, 400, { error: 'bad path' });
+  if (file !== STATIC_DIR && !file.startsWith(STATIC_DIR + sep)) return json(res, 400, { error: 'bad path' });
   try {
     if (!(await stat(file)).isFile()) throw new Error('dir');
   } catch {
