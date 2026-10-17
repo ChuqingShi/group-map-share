@@ -1,15 +1,21 @@
 // HTTP + WebSocket server. Serves the built client in production and relays
 // live positions between members of in-memory rooms.
-import { createServer, type ServerResponse } from 'node:http';
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { RoomRegistry, type Conn, type Room } from './rooms.ts';
-import { clientIp, serverConfig } from './config.ts';
+import { serverConfig } from './config.ts';
+import { ConnectionLimiter, MessageBucket, SECURITY_HEADERS, callerIp, hostKeyOk, originOk } from './security.ts';
 import type { ClientMsg } from '../shared/protocol.ts';
 
 const { port: PORT, host: HOST, serveStatic: SERVE_STATIC, behindProxy } = serverConfig(process.env);
 const STATIC_DIR = resolve(import.meta.dirname, '..', 'dist');
+/** When set, only requests carrying this key may start an event (the host link stores it). Joining stays open to anyone with the room link. */
+const HOST_KEY = process.env.GMS_HOST_KEY || undefined;
+const EXTRA_ORIGINS = (process.env.GMS_ALLOWED_ORIGINS ?? '').split(',').map((o) => o.trim()).filter(Boolean);
+const socketsPerIp = new ConnectionLimiter(30);
+const MAX_SOCKETS = 2_000;
 
 export const registry = new RoomRegistry();
 setInterval(() => registry.sweep(), 30_000).unref();
@@ -37,6 +43,30 @@ const MIME: Record<string, string> = {
   '.json': 'application/json',
   '.webmanifest': 'application/manifest+json',
 };
+
+/** Read a tiny JSON object body (event name). Anything odd, oversized or missing is just null. */
+function readJson(req: IncomingMessage): Promise<Record<string, unknown> | null> {
+  return new Promise((resolve) => {
+    const chunks: Buffer[] = [];
+    let size = 0;
+    req.on('data', (c: Buffer) => {
+      size += c.length;
+      if (size > 1024) {
+        req.destroy();
+        resolve(null);
+      } else chunks.push(c);
+    });
+    req.on('end', () => {
+      try {
+        const v: unknown = JSON.parse(Buffer.concat(chunks).toString() || 'null');
+        resolve(v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : null);
+      } catch {
+        resolve(null);
+      }
+    });
+    req.on('error', () => resolve(null));
+  });
+}
 
 function json(res: ServerResponse, status: number, body: unknown) {
   res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' });
@@ -88,18 +118,21 @@ async function serveStatic(url: URL, res: ServerResponse) {
 }
 
 const server = createServer(async (req, res) => {
+  for (const [k, v] of Object.entries(SECURITY_HEADERS)) res.setHeader(k, v);
   const url = parseUrl(req.url);
   if (!url) return json(res, 400, { error: 'bad url' });
   if (url.pathname === '/api/rooms' && req.method === 'POST') {
-    const ip = clientIp(req, behindProxy);
+    if (!hostKeyOk(HOST_KEY, req.headers['x-host-key'])) return json(res, 403, { error: 'host_only' });
+    const ip = callerIp(req, behindProxy);
     if (!allowCreate(ip)) return json(res, 429, { error: 'too many rooms, try again later' });
-    const room = registry.create();
-    return room ? json(res, 201, { id: room.id }) : json(res, 503, { error: 'server full' });
+    const body = await readJson(req);
+    const room = registry.create(body?.name);
+    return room ? json(res, 201, { id: room.id, name: room.name }) : json(res, 503, { error: 'server full' });
   }
   const m = url.pathname.match(/^\/api\/rooms\/([\w-]{1,64})$/);
   if (m && req.method === 'GET') {
     const room = registry.get(m[1]);
-    return room ? json(res, 200, { id: room.id, players: room.members.size }) : json(res, 404, { error: 'no_room' });
+    return room ? json(res, 200, { id: room.id, name: room.name, players: room.members.size }) : json(res, 404, { error: 'no_room' });
   }
   if (url.pathname === '/api/health') return json(res, 200, { ok: true, rooms: registry.rooms.size });
   if (SERVE_STATIC && req.method === 'GET') return serveStatic(url, res);
@@ -107,9 +140,27 @@ const server = createServer(async (req, res) => {
 });
 
 // --- realtime ------------------------------------------------------------
-const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 2048 });
+// Slow or stalled clients must not hold sockets open forever.
+server.headersTimeout = 15_000;
+server.requestTimeout = 20_000;
+
+const wss = new WebSocketServer({
+  server,
+  path: '/ws',
+  maxPayload: 2048,
+  verifyClient: ({ req }: { req: IncomingMessage }) => originOk(req, EXTRA_ORIGINS) && wss.clients.size < MAX_SOCKETS,
+});
 
 wss.on('connection', (ws: WebSocket, req) => {
+  const ip = callerIp(req, behindProxy);
+  if (!socketsPerIp.acquire(ip)) return void ws.close(4029, 'busy');
+  const bucket = new MessageBucket();
+  let drops = 0;
+  // A socket that connects and never joins is dropped quickly.
+  const helloTimer = setTimeout(() => {
+    if (!me) ws.close(4008, 'hello timeout');
+  }, 10_000);
+
   const roomId = parseUrl(req.url)?.searchParams.get('room') ?? '';
   const room: Room | undefined = registry.get(roomId);
   const conn: Conn = {
@@ -132,12 +183,19 @@ wss.on('connection', (ws: WebSocket, req) => {
   }, 20_000);
 
   ws.on('message', (data) => {
+    // Sustained flooding gets the socket closed; short bursts are fine.
+    if (!bucket.allow()) {
+      if (++drops > 60) ws.close(4009, 'slow down');
+      return;
+    }
     let msg: ClientMsg;
     try {
       msg = JSON.parse(String(data));
     } catch {
       return conn.send({ t: 'error', code: 'bad_message' });
     }
+    // Valid JSON is not necessarily an object: `null`, `7` and `"x"` would make `msg.t` throw and kill the process.
+    if (typeof msg !== 'object' || msg === null) return conn.send({ t: 'error', code: 'bad_message' });
     if (msg.t === 'hello') {
       if (me) return;
       const r = registry.join(room, conn, msg);
@@ -151,6 +209,13 @@ wss.on('connection', (ws: WebSocket, req) => {
     if (!me || !registry.owns(room, me, conn)) return;
     if (msg.t === 'pos') registry.updatePosition(room, me, msg.lat, msg.lng, msg.acc);
     else if (msg.t === 'sharing') registry.setSharing(room, me, msg.on === true);
+    else if (msg.t === 'mood') registry.setMood(room, me, msg.mood, msg.note);
+    else if (msg.t === 'plan') registry.createPlan(room, me, msg);
+    else if (msg.t === 'plan_join') registry.joinPlan(room, me, msg.id);
+    else if (msg.t === 'plan_leave') registry.leavePlan(room, me, msg.id);
+    else if (msg.t === 'plan_cancel') registry.cancelPlan(room, me, msg.id);
+    else if (msg.t === 'plan_ping') registry.pingPlan(room, me, msg.id);
+    else if (msg.t === 'bubble') registry.say(room, me, msg.emoji, msg.text);
     else if (msg.t === 'leave') {
       registry.leave(room, me);
       me = null;
@@ -160,6 +225,8 @@ wss.on('connection', (ws: WebSocket, req) => {
 
   ws.on('close', () => {
     clearInterval(ping);
+    clearTimeout(helloTimer);
+    socketsPerIp.release(ip);
     if (me) registry.disconnect(room, me, conn);
   });
 });
