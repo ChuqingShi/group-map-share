@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Group Map Share: a pull request is ready for your approval</title>
+</head>
+<!--
+  Approve-request email, styled like the app (retro game manual meets Animal Crossing).
+  Email-safe on purpose: tables, inline styles, no images (emoji and CSS only), system fonts.
+  Placeholders: {{PR_URL}} {{PR_FILES_URL}} {{PR_TITLE}} {{HEADLINE}} {{CHANGE_1}} {{CHANGE_2}} {{CHANGE_3}}
+                {{TESTS}} {{REPLY_MAILTO}}
+-->
+<body style="margin:0;padding:0;background:#141b2e;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#141b2e" style="background:#141b2e;">
+<tr><td align="center" style="padding:26px 12px 34px;">
+
+  <!-- red ring -->
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;border:3px solid #c8452d;background:#c8452d;">
+  <tr><td>
+    <!-- ink frame -->
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f3e9cc" style="border:5px solid #1d2433;background:#f3e9cc;">
+    <tr><td style="padding:9px;">
+      <!-- gold inner rule -->
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:2px solid #e0a526;">
+      <tr><td align="center" style="padding:26px 24px 8px;">
+
+        <div style="font-size:44px;line-height:1;">&#128205;</div>
+        <div style="font-family:Futura,'Avenir Next Condensed','Trebuchet MS',Arial,sans-serif;font-weight:900;font-size:26px;letter-spacing:2px;text-transform:uppercase;color:#1d2433;padding-top:8px;">Group Map Share</div>
+        <div style="font-family:Georgia,Palatino,serif;font-style:italic;font-size:16px;color:#1d2433;padding-top:4px;">a note from Eric's side of the map</div>
+
+        <!-- thought bubble -->
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:20px auto 0;">
+        <tr><td style="background:#fff8e4;border:3px solid #1d2433;border-radius:20px;padding:12px 18px;box-shadow:3px 3px 0 #e0a526;font-family:Futura,'Trebuchet MS',Arial,sans-serif;font-weight:800;font-size:17px;line-height:1.3;color:#1d2433;text-align:center;">
+          &#127828; {{HEADLINE}}
+        </td></tr>
+        </table>
+        <div style="font-size:0;line-height:0;padding-top:4px;"><span style="display:inline-block;width:12px;height:12px;border:3px solid #1d2433;border-radius:50%;background:#fff8e4;"></span></div>
+        <div style="font-size:0;line-height:0;padding-top:3px;"><span style="display:inline-block;width:7px;height:7px;border:3px solid #1d2433;border-radius:50%;background:#fff8e4;"></span></div>
+
+        <div style="font-size:40px;line-height:1.1;padding-top:2px;">&#129418;</div>
+      </td></tr>
+
+      <tr><td style="padding:14px 28px 4px;font-family:Georgia,Palatino,serif;font-size:16px;line-height:1.55;color:#1d2433;">
+        <p style="margin:0 0 12px;">Hi Chuqing,</p>
+        <p style="margin:0 0 6px;"><b style="font-family:Futura,'Trebuchet MS',Arial,sans-serif;letter-spacing:1px;text-transform:uppercase;">{{PR_TITLE}}</b> is open and waiting for your review. Here is what is in it:</p>
+      </td></tr>
+
+      <!-- stage cards -->
+      <tr><td style="padding:6px 28px 0;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+          <tr><td style="padding:8px 0;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#fff8e4" style="border:3px solid #1d2433;background:#fff8e4;box-shadow:3px 3px 0 #e0a526;"><tr>
+              <td width="46" align="center" style="padding:10px 0 10px 10px;"><span style="display:inline-block;width:28px;height:28px;line-height:28px;background:#c8452d;color:#fff8e4;border:2px solid #1d2433;font-family:Futura,'Trebuchet MS',Arial,sans-serif;font-weight:900;font-size:15px;text-align:center;">1</span></td>
+              <td style="padding:10px 12px;font-family:Futura,'Trebuchet MS',Arial,sans-serif;font-weight:800;font-size:15px;letter-spacing:.5px;text-transform:uppercase;color:#1d2433;">{{CHANGE_1}}</td>
+            </tr></table>
+          </td></tr>
+          <tr><td style="padding:8px 0;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#fff8e4" style="border:3px solid #1d2433;background:#fff8e4;box-shadow:3px 3px 0 #e0a526;"><tr>
+              <td width="46" align="center" style="padding:10px 0 10px 10px;"><span style="display:inline-block;width:28px;height:28px;line-height:28px;background:#c8452d;color:#fff8e4;border:2px solid #1d2433;font-family:Futura,'Trebuchet MS',Arial,sans-serif;font-weight:900;font-size:15px;text-align:center;">2</span></td>
+              <td style="padding:10px 12px;font-family:Futura,'Trebuchet MS',Arial,sans-serif;font-weight:800;font-size:15px;letter-spacing:.5px;text-transform:uppercase;color:#1d2433;">{{CHANGE_2}}</td>
+            </tr></table>
+          </td></tr>
+          <tr><td style="padding:8px 0;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#fff8e4" style="border:3px solid #1d2433;background:#fff8e4;box-shadow:3px 3px 0 #e0a526;"><tr>
+              <td width="46" align="center" style="padding:10px 0 10px 10px;"><span style="display:inline-block;width:28px;height:28px;line-height:28px;background:#c8452d;color:#fff8e4;border:2px solid #1d2433;font-family:Futura,'Trebuchet MS',Arial,sans-serif;font-weight:900;font-size:15px;text-align:center;">3</span></td>
+              <td style="padding:10px 12px;font-family:Futura,'Trebuchet MS',Arial,sans-serif;font-weight:800;font-size:15px;letter-spacing:.5px;text-transform:uppercase;color:#1d2433;">{{CHANGE_3}}</td>
+            </tr></table>
+          </td></tr>
+        </table>
+      </td></tr>
+
+      <!-- treasure trail to the X -->
+      <tr><td align="center" style="padding:14px 28px 2px;font-family:Georgia,serif;color:#c8452d;font-size:22px;letter-spacing:7px;line-height:1;">&bull; &bull; &bull; &bull; &bull; &bull; &bull; <span style="font-family:Futura,'Trebuchet MS',Arial,sans-serif;font-weight:900;font-size:30px;letter-spacing:0;color:#c8452d;">&#10006;</span></td></tr>
+
+      <!-- approve -->
+      <tr><td align="center" style="padding:14px 28px 6px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center"><tr>
+          <td align="center" bgcolor="#e0a526" style="background:#e0a526;border:3px solid #1d2433;box-shadow:4px 4px 0 #1d2433;">
+            <a href="{{PR_URL}}" target="_blank" style="display:block;padding:15px 30px;font-family:Futura,'Trebuchet MS',Arial,sans-serif;font-weight:900;font-size:18px;letter-spacing:2px;text-transform:uppercase;color:#1d2433;text-decoration:none;">&#9989;&nbsp; Review &amp; approve</a>
+          </td>
+        </tr></table>
+        <div style="font-family:Georgia,serif;font-style:italic;font-size:14px;line-height:1.5;color:#1d2433;padding-top:12px;">This opens the pull request on GitHub. Clicking <b>Approve</b> there is what lets Eric merge it into main. Nothing goes into main before that.</div>
+      </td></tr>
+
+      <tr><td align="center" style="padding:10px 28px 4px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center"><tr>
+          <td align="center" bgcolor="#fff8e4" style="background:#fff8e4;border:3px solid #1d2433;box-shadow:3px 3px 0 #1d2433;">
+            <a href="{{PR_FILES_URL}}" target="_blank" style="display:block;padding:10px 20px;font-family:Futura,'Trebuchet MS',Arial,sans-serif;font-weight:900;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;color:#1d2433;text-decoration:none;">&#128269;&nbsp; See what changed first</a>
+          </td>
+          <td width="10"></td>
+          <td align="center" bgcolor="#fff8e4" style="background:#fff8e4;border:3px solid #1d2433;box-shadow:3px 3px 0 #1d2433;">
+            <a href="{{REPLY_MAILTO}}" style="display:block;padding:10px 20px;font-family:Futura,'Trebuchet MS',Arial,sans-serif;font-weight:900;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;color:#1d2433;text-decoration:none;">&#128172;&nbsp; Ask Eric</a>
+          </td>
+        </tr></table>
+      </td></tr>
+
+      <!-- tests -->
+      <tr><td style="padding:18px 28px 6px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#fff8e4" style="border:3px solid #1d2433;background:#fff8e4;box-shadow:4px 4px 0 #1f8a87;">
+        <tr><td style="padding:14px 16px 12px;font-family:Georgia,serif;font-size:14px;line-height:1.5;color:#1d2433;">
+          <span style="display:inline-block;background:#1f8a87;color:#fff8e4;border:2px solid #1d2433;font-family:Futura,'Trebuchet MS',Arial,sans-serif;font-weight:900;font-size:11px;letter-spacing:2px;text-transform:uppercase;padding:2px 10px;">Checked</span>
+          <div style="padding-top:8px;">{{TESTS}}</div>
+        </td></tr>
+        </table>
+      </td></tr>
+
+      <tr><td align="center" style="padding:16px 28px 24px;font-family:Georgia,serif;font-style:italic;font-size:13px;line-height:1.5;color:#1d2433;">
+        Sent from Eric's Gmail, drafted with Claude. Replying to this email reaches Eric.
+      </td></tr>
+      </table>
+    </td></tr>
+    </table>
+  </td></tr>
+  </table>
+
+</td></tr>
+</table>
+</body>
+</html>
