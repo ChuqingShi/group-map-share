@@ -30,6 +30,16 @@ Limits live in `server/rooms.ts` and are all tested: 3 plans per player, 20 per 
 - `src/Crew.tsx` (strip and toasts), `src/Meetups.tsx` (mood, plans, flag form, talk), wired in `src/App.tsx`.
 - Tests: `test/meetups.test.ts`, `test/meetup.test.ts`, `test/bubble.test.ts`, `test/treasure.test.ts`, browser tests in `e2e/` (`npm run e2e`).
 
+## Added in the final build (newest ideas first)
+- **Cards**: tap a picture, a name or a pin (`src/PersonCard.tsx`): mood, a contact line the person typed (`contactLink()` turns only a strict phone number or email into a link), flags they made or joined. Server: `Player.contact`, `contact` message, 80 characters, plain text.
+- **No thanks / suggest**: `plan_decline` and `plan_suggest`. `Plan.declined` and `Plan.suggestions` (one idea per person, 8 per plan, rate limited, open to non organizers). The creator is toasted and can "Plan it".
+- **Organizers**: `Player.organizer` (join checkbox, Settings toggle, `organizer` message). While anyone is one, `createPlan` refuses non organizers (`organizers_only`); everyone can still join, decline and suggest. Self declared by design.
+- **Drag to plant** (`src/FlagDrag.tsx`): the Flags button is draggable. `MapHandle.unprojectClient/nearestPlace/findPlace` plus `src/places.ts` name the place under the flag from the vector tiles the map already loaded (no outside service).
+- **Typed moods**: `Mood = { id: preset | 'custom', emoji, label, note }`; `cleanEmoji()` only accepts emoji parts. What you say sets the mood (`Summary.feeling` in `src/bubble.ts`).
+- **Talk plants flags by voice**: after the countdown it sends the bubble and mood, or plants and pings when the named place is found on the map, with an Undo toast. Not found: "Drop it on the map".
+- **iPhone touch**: no double tap zoom, no long press callout, a 3 px invisible halo around buttons, and a touchstart listener so `:active` shows. Not yet confirmed on a real iPhone (no simulator on the build machine).
+- **Test mission**: `src/quest.ts`, shown once per build (`/api/version`), steps tick themselves off.
+
 ## Honest limits
 - Everything is passive and only while the app is open. A locked or closed phone gets nothing and sends nothing: web apps cannot track location in the background, and closed-app push needs stored subscriptions. Keep-screen-on helps while the app is open.
 - Trails are drawn as the crow flies (curved for looks), not along streets. Sending locations to a routing service would break the privacy promise, so a real route would be opt in.
