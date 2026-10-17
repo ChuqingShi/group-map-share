@@ -56,14 +56,10 @@ Brave at their usual paths, and says which browser it used.
 
 ## CI
 
-`.github/workflows/ci.yml` runs on push and pull request with Node 24: `npm ci`, typecheck, `npm test`, `npm run build`,
+Once enabled, the workflow runs on push and pull request with Node 24: `npm ci`, typecheck, `npm test`, `npm run build`,
 then a second job runs `npm run e2e` on the runner's preinstalled Google Chrome (it installs Chrome with
 `npx playwright-core install chrome --with-deps` only if the image lacks it) and uploads `e2e/artifacts/` when it fails.
 Alternative without Chrome: `npx playwright-core install chromium --with-deps` and `E2E_CHANNEL=chromium`.
 
-The GitHub token on the original dev machine lacks the `workflow` scope, so `ci.yml` cannot be pushed from there. Add it
-from the GitHub web UI, or from a machine whose token has `workflow` (`gh auth refresh -s workflow`).
-
-## CI
-
-The GitHub Actions workflow is saved as `docs/ci/ci.yml` because this repo's pushes were made with a token that cannot push workflow files. To enable it: `gh auth refresh -s workflow`, move it to `.github/workflows/ci.yml`, push.
+The workflow file is saved as `docs/ci/ci.yml`, not under `.github/`, because the GitHub token it was pushed with lacks the
+`workflow` scope. To switch CI on: `gh auth refresh -s workflow`, move it to `.github/workflows/ci.yml`, push.
