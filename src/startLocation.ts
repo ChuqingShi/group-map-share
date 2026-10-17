@@ -4,19 +4,24 @@ import type { LatLng } from './geo.ts';
 import { simStart, type GeoError } from './useGeolocation.ts';
 
 const KEY = 'gms-start';
+/** Only picks where the map first opens, so a few hours old is fine. Kept on this device only, rounded to about 1 km. */
+const TTL_MS = 12 * 60 * 60_000;
 
 /** Result of the location prompt for this tab: a position, 'declined', or null if we haven't asked yet. */
 export function savedStart(): LatLng | 'declined' | null {
   try {
-    const v = JSON.parse(sessionStorage.getItem(KEY) ?? 'null');
-    return v === 'declined' || (v && typeof v.lat === 'number') ? v : null;
+    const o = JSON.parse(localStorage.getItem(KEY) ?? 'null');
+    if (!o || Date.now() - Number(o.at) > TTL_MS) return null;
+    const v = o.v;
+    return v === 'declined' || (v && typeof v.lat === 'number' && typeof v.lng === 'number') ? v : null;
   } catch {
     return null;
   }
 }
 
 export function saveStart(v: LatLng | 'declined') {
-  sessionStorage.setItem(KEY, JSON.stringify(v));
+  const r = (n: number) => Math.round(n * 100) / 100;
+  localStorage.setItem(KEY, JSON.stringify({ v: v === 'declined' ? v : { lat: r(v.lat), lng: r(v.lng) }, at: Date.now() }));
 }
 
 /** Current permission state, if the browser will tell us without prompting. */
