@@ -10,6 +10,7 @@ import {
   eventually,
   landingCreateButton,
   leaveRoom,
+  openSettings,
   setup,
   waitForCrew,
   type Player,
@@ -80,6 +81,7 @@ scenario('9c. event: leaving (two taps) removes me and my plans for others, forg
   await eventually(async () => assert.equal(await bob.tid('plan-x').count(), 1), { message: 'Bob sees the plan' });
 
   // The first tap only arms the button.
+  await openSettings(ann);
   const leave = ann.tid('btn-leave');
   await leave.click();
   assert.match(((await leave.getAttribute('aria-label')) ?? '') + ((await leave.textContent()) ?? ''), /sure|again/i, 'first tap arms the button');

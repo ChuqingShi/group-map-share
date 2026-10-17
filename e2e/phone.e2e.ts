@@ -12,7 +12,7 @@ import {
 
 const { scenario } = setup();
 
-const ACTION_BAR = ['btn-mood', 'btn-plans', 'btn-talk', 'btn-share', 'btn-leave', 'btn-names'];
+const ACTION_BAR = ['btn-mood', 'btn-plans', 'btn-talk', 'btn-share', 'btn-names'];
 const LONG_PLACE = 'Taqueria Super Long Name Number One'; // 40 characters is the limit
 const LONG_NOTE = 'Bring a jacket, it gets windy by the pier and the line is long';
 

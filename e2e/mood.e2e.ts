@@ -13,16 +13,17 @@ scenario('3. mood: Ann is hungry, Bob sees a badge on her pin and avatar, cleari
   // No mood to begin with.
   assert.equal(await pinFor(bob, ann.id).locator('[data-testid="pin-mood"]').count(), 0);
 
+  // One tap on a common mood and it is shared: no second button.
   await openSheet(ann, 'btn-mood', 'mood-sheet');
   await ann.tid('mood-hungry').click();
-  await ann.tid('mood-note').fill('starving for tacos');
-  await ann.tid('btn-mood-share').click();
+  await eventually(async () => assert.equal(await ann.tid('mood-sheet').isVisible(), false), { message: 'the sheet closes by itself' });
 
   // On the wire first, so a failure says whether the server or the UI is at fault.
   const moodMsg = await bob.waitForMessage<Extract<ServerMsg, { t: 'player' }>>(
     (m) => m.t === 'player' && m.player.id === ann.id && m.player.mood?.id === 'hungry',
   );
-  assert.equal(moodMsg.player.mood?.note, 'starving for tacos');
+  assert.equal(moodMsg.player.mood?.label, 'Hungry');
+  assert.equal(moodMsg.player.mood?.emoji, MOOD_EMOJI.hungry);
 
   // Bob: a badge on Ann's pin and on Ann's avatar. Ann sees her own avatar badge too.
   await eventually(async () => assert.ok((await pinFor(bob, ann.id).locator('[data-testid="pin-mood"]').count()) > 0), {

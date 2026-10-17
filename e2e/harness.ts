@@ -726,8 +726,9 @@ export async function crewIds(p: Player): Promise<string[]> {
   return p.tid('crew-avatar').evaluateAll((els) => els.map((e) => e.getAttribute('data-player-id') ?? ''));
 }
 
-/** Leave the room via the action bar. The first tap only arms the button (label "Sure?"), the second one leaves. */
+/** Leave the room from the settings window. The first tap only arms the button ("Tap again to leave"), the second one leaves. */
 export async function leaveRoom(p: Player): Promise<void> {
+  await openSettings(p);
   const btn = (await p.tid('btn-leave').count()) > 0 ? p.tid('btn-leave') : p.page.locator('button', { hasText: 'Leave' }).first();
   await btn.click();
   await sleep(150);
