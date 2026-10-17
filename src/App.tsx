@@ -508,17 +508,17 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
     playSfx('decline');
     setSelectedPlan((cur) => (cur === id ? null : cur));
   };
-  /** My contact line: tell the room, and remember it on this device (and for this event's reconnects). */
-  const saveContact = (text: string) => {
-    room.send({ t: 'contact', text });
-    const clean = text.trim();
+  /** My name and contact line: tell the room, and remember them on this device (and for this event's reconnects). */
+  const saveMyCard = ({ name, contact }: { name: string; contact: string }) => {
+    if (meP && name !== meP.name) room.send({ t: 'profile', name });
+    if (meP && contact !== meP.contact) room.send({ t: 'contact', text: contact });
     setProfile((p) => {
       if (!p) return p;
-      const next = { ...p, contact: clean };
+      const next = { ...p, name, contact };
       touchEvent(roomId, { profile: next });
       return next;
     });
-    store.set(PROFILE_KEY, JSON.stringify({ ...loadProfile(), contact: clean }));
+    store.set(PROFILE_KEY, JSON.stringify({ ...loadProfile(), name, contact }));
   };
   const cardPlayer = cardId ? room.players[cardId] : undefined;
   const leaveTap = () => {
@@ -663,7 +663,7 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
           onShowPlan={(id) => { showPlan(id); setPanel(null); }}
           onJoin={(id) => { room.send({ t: 'plan_join', id }); playSfx('imin'); setSelectedPlan(id); }}
           onLeave={(id) => room.send({ t: 'plan_leave', id })}
-          onSaveContact={saveContact}
+          onSave={saveMyCard}
         />
       ) : panel === 'suggest' && suggestId && room.plans[suggestId] ? (
         <SuggestSheet

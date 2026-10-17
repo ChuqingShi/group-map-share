@@ -117,3 +117,43 @@ scenario('16. no thanks and suggest somewhere else: Bob says no and proposes, An
   ann.assertNoErrors();
   bob.assertNoErrors();
 });
+
+scenario('15b. edit my own name and contact on my card; everyone sees the new name, and a reload keeps it', async (s) => {
+  const ann = await s.player('Ann', SPOTS.ann);
+  const bob = await s.player('Bob', SPOTS.bob, { roomUrl: ann.roomUrl });
+  await Promise.all([waitForCrew(ann, 2), waitForCrew(bob, 2)]);
+
+  await openCard(ann, ann.id);
+  assert.equal(await ann.tid('card-name-input').inputValue(), 'Ann');
+  assert.equal(await ann.tid('btn-card-save').isDisabled(), true, 'nothing to save yet');
+  await ann.tid('card-name-input').fill('Annie');
+  await ann.tid('card-contact-input').fill('+1 310 555 0100');
+  assert.equal(await ann.tid('btn-card-save').isDisabled(), false);
+  await ann.tid('card-name-input').fill('   ');
+  assert.equal(await ann.tid('btn-card-save').isDisabled(), true, 'an empty name cannot be saved');
+  await ann.tid('card-name-input').fill('Annie');
+  await ann.tid('btn-card-save').click();
+  await eventually(() => assert.ok(ann.sent.some((m) => m.t === 'profile' && m.name === 'Annie')), { message: 'rename sent' });
+  await eventually(() => assert.ok(ann.sent.some((m) => m.t === 'contact' && m.text === '+1 310 555 0100')), { message: 'contact sent' });
+  await closeSheet(ann, 'person-card');
+
+  // Bob sees the new name on her avatar and on her card, and her number is a call link.
+  await eventually(async () => {
+    const label = await bob.page.locator(`[data-testid="crew-avatar"][data-player-id="${ann.id}"]`).getAttribute('aria-label');
+    assert.match(label ?? '', /Annie/);
+  }, { message: "Ann's avatar label is Annie" });
+  await openCard(bob, ann.id);
+  await eventually(async () => assert.match(await bob.tid('card-name').innerText(), /^annie$/i), { message: 'new name on the card' });
+  await eventually(async () => assert.equal(await bob.tid('card-contact-link').getAttribute('href'), 'tel:+13105550100'), { message: 'tap to call' });
+  await closeSheet(bob, 'person-card');
+
+  // A reload resumes the same player with the new name and contact line.
+  await ann.page.reload();
+  await waitForCrew(ann, 2);
+  await openCard(ann, ann.id);
+  assert.equal(await ann.tid('card-name-input').inputValue(), 'Annie', 'the name survived the reload');
+  assert.equal(await ann.tid('card-contact-input').inputValue(), '+1 310 555 0100', 'and so did the contact line');
+
+  ann.assertNoErrors();
+  bob.assertNoErrors();
+});

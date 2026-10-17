@@ -143,6 +143,8 @@ export type ClientMsg =
   | { t: 'hello'; name: string; avatar: string; color: string; token?: string; organizer?: boolean; contact?: string }
   /** Set or clear the contact line on my card. */
   | { t: 'contact'; text: string }
+  /** Change my display name. */
+  | { t: 'profile'; name: string }
   /** Say whether I am an organizer (the join form asks too; this is for changing your mind later). */
   | { t: 'organizer'; on: boolean }
   | { t: 'pos'; lat: number; lng: number; acc?: number | null }

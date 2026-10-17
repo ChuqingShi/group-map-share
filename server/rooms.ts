@@ -290,6 +290,18 @@ export class RoomRegistry {
     this.broadcast(room, { t: 'player', player: m.player });
   }
 
+  /** Rename myself. Cleaned like a join name; an empty or unchanged name is ignored. */
+  setName(room: Room, id: string, name: unknown) {
+    const m = room.members.get(id);
+    if (!m || typeof name !== 'string' || name.trim() === '') return;
+    const clean = cleanName(name);
+    if (clean === m.player.name) return;
+    m.player.name = clean;
+    m.active = true;
+    room.lastActive = this.opts.now();
+    this.broadcast(room, { t: 'player', player: m.player });
+  }
+
   // --- contact cards -----------------------------------------------------------
 
   /** The contact line on my card. Plain text, capped; shown only to people in this event, gone when I leave. */

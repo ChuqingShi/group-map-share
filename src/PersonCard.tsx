@@ -6,7 +6,7 @@ import { CONTACT_MAX, PLAN_EMOJI, type Plan, type Player } from '../shared/proto
 import { formatAgo, formatDistance, distanceM, type LatLng } from './geo.ts';
 import { KIND_LABEL, contactLink, moodEmoji, moodText } from './meetup.ts';
 
-export function PersonCard({ player, isMe, plans, mePlayerId, mePos, now, clockOffset, onClose, onShowOnMap, onShowPlan, onJoin, onLeave, onSaveContact }: {
+export function PersonCard({ player, isMe, plans, mePlayerId, mePos, now, clockOffset, onClose, onShowOnMap, onShowPlan, onJoin, onLeave, onSave }: {
   player: Player;
   isMe: boolean;
   plans: Plan[];
@@ -19,9 +19,15 @@ export function PersonCard({ player, isMe, plans, mePlayerId, mePos, now, clockO
   onShowPlan: (id: string) => void;
   onJoin: (planId: string) => void;
   onLeave: (planId: string) => void;
-  onSaveContact: (text: string) => void;
+  /** My own card only: save my name and contact line. */
+  onSave: (edits: { name: string; contact: string }) => void;
 }) {
   const [draft, setDraft] = useState(player.contact);
+  const [nameDraft, setNameDraft] = useState(player.name);
+  const dirty = nameDraft.trim() !== player.name || draft.trim() !== player.contact;
+  const save = () => {
+    if (nameDraft.trim() !== '') onSave({ name: nameDraft.trim(), contact: draft.trim() });
+  };
   const made = plans.filter((p) => p.by === player.id);
   const going = plans.filter((p) => p.by !== player.id && p.joined.includes(player.id));
   const link = player.contact ? contactLink(player.contact) : null;
@@ -67,6 +73,23 @@ export function PersonCard({ player, isMe, plans, mePlayerId, mePos, now, clockO
         <button type="button" className="btn-icon" aria-label="Close" onClick={onClose}>✕</button>
       </header>
 
+      {isMe && (
+        <div className="card-block">
+          <span className="card-label">Your name</span>
+          <input
+            data-testid="card-name-input"
+            aria-label="Your name"
+            value={nameDraft}
+            maxLength={24}
+            enterKeyHint="done"
+            autoComplete="off"
+            onChange={(e) => setNameDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') save();
+            }}
+          />
+        </div>
+      )}
       {player.organizer && <p className="card-tag" data-testid="card-organizer">⭐ Organizer</p>}
 
       {player.mood && (
@@ -90,10 +113,10 @@ export function PersonCard({ player, isMe, plans, mePlayerId, mePos, now, clockO
               placeholder="Phone, email, or where to find you"
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') onSaveContact(draft);
+                if (e.key === 'Enter') save();
               }}
             />
-            <button type="button" className="btn btn-small" data-testid="btn-card-save" disabled={draft.trim() === player.contact} onClick={() => onSaveContact(draft)}>Save</button>
+            <button type="button" className="btn btn-small" data-testid="btn-card-save" disabled={!dirty || nameDraft.trim() === ''} onClick={save}>Save</button>
           </div>
         ) : player.contact ? (
           <span className="card-contact-text">

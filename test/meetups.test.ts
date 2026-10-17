@@ -146,6 +146,26 @@ test('a resumed player keeps their organizer choice unless the new hello says ot
   assert.equal(b.player.organizer, false, 'a string is not a boolean');
 });
 
+test('renaming: cleaned like a join name, empty or non-string ignored, others are told', () => {
+  const { reg, room, join } = setup();
+  const ann = join('Ann');
+  const bob = join('Bob');
+  const name = () => room.members.get(ann.id)!.player.name;
+  reg.setName(room, ann.id, '  Anna\u0000 Maria ');
+  assert.equal(name(), 'Anna Maria');
+  const seen = bob.conn.inbox.findLast((m) => m.t === 'player' && m.player.id === ann.id);
+  assert.equal(seen?.t === 'player' && seen.player.name, 'Anna Maria');
+  reg.setName(room, ann.id, '   ');
+  reg.setName(room, ann.id, 7);
+  reg.setName(room, ann.id, null);
+  reg.setName(room, 'nobody', 'x');
+  assert.equal(name(), 'Anna Maria', 'ignored');
+  reg.setName(room, ann.id, 'x'.repeat(100));
+  assert.equal([...name()].length, 24, 'capped like a join name');
+  reg.setName(room, ann.id, '\u3164\u2800');
+  assert.equal(name(), 'Player', 'only invisible characters: becomes the default name');
+});
+
 test('contact cards: a short plain text line, set at join or later, cleared with an empty string, bounded and clean', () => {
   const { reg, room, join } = setup();
   const conn = fakeConn();
