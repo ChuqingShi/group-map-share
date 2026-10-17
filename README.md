@@ -41,8 +41,11 @@ The interface is dressed like a retro game manual (cream paper, square corners, 
   one, only organizers can plant flags; with none, everyone can. Everyone can still say I'm in, no thanks
   or suggest.
 - **Test mission.** A new build shows a short checklist that ticks itself off as a tester tries each feature.
-- **Settings.** Notifications while the app is in the background, keep the screen on, spoken pings (off by
-  default), the map legend, the organizer switch, the test mission and Leave.
+- **Settings.** Rename the event (anyone, unless there is an organizer), an Allow notifications button (the
+  browser's own pop-up), sound effects, keep the screen on, spoken pings (off by default), the map legend, the
+  organizer switch, the test mission and Leave. Your own card lets you change your name and contact line.
+- **Sounds.** Soft cozy chimes for joining, pings, bubbles and flags, generated with ElevenLabs
+  (`scripts/gen-sfx.py`, key read from the macOS Keychain). Switch them off in Settings.
 
 ## Run it
 
@@ -102,7 +105,7 @@ private window) on the same room link to see two players. `?quest` forces the te
 ```bash
 npm run typecheck
 npm test           # room logic, security, summarizer, place lookup, events, and real WebSocket sessions
-npm run e2e        # builds, then drives two phone-sized Chromes through 26 scenes (about a minute)
+npm run e2e        # builds, then drives two phone-sized Chromes through 29 scenes (about two minutes)
 npm run check      # all three
 ```
 
