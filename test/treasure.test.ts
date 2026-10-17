@@ -14,6 +14,7 @@ const player = (id: string, lat: number, lng: number, over: Partial<Player> = {}
   sharing: true,
   mood: null,
   organizer: false,
+  contact: '',
   ...over,
 });
 
@@ -23,7 +24,7 @@ const west = (metres: number) => X.lng - metres / (111_320 * Math.cos((X.lat * M
 const at = (id: string, metres: number, over: Partial<Player> = {}) => player(id, X.lat, west(metres), over);
 
 const plan = (over: Partial<Plan> = {}): Plan => ({
-  id: 'p1', by: 'a', byName: 'Eric', kind: 'lunch', place: "Joe's Tacos", note: '', lat: X.lat, lng: X.lng, joined: ['a'], createdAt: 0, ...over,
+  id: 'p1', by: 'a', byName: 'Eric', kind: 'lunch', place: "Joe's Tacos", note: '', lat: X.lat, lng: X.lng, joined: ['a'], declined: [], suggestions: [], createdAt: 0, ...over,
 });
 
 const ids = (c: ReturnType<typeof treasureTrails>) => c.features.map((f) => `${f.properties.planId}:${f.properties.playerId}${f.properties.preview ? '*' : ''}`);

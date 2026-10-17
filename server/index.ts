@@ -243,10 +243,13 @@ wss.on('connection', (ws: WebSocket, req) => {
     if (msg.t === 'pos') registry.updatePosition(room, me, msg.lat, msg.lng, msg.acc);
     else if (msg.t === 'sharing') registry.setSharing(room, me, msg.on === true);
     else if (msg.t === 'organizer') registry.setOrganizer(room, me, msg.on);
+    else if (msg.t === 'contact') registry.setContact(room, me, msg.text);
     else if (msg.t === 'mood') registry.setMood(room, me, msg.mood, msg.note, msg.emoji, msg.text);
     else if (msg.t === 'plan') registry.createPlan(room, me, msg);
     else if (msg.t === 'plan_join') registry.joinPlan(room, me, msg.id);
     else if (msg.t === 'plan_leave') registry.leavePlan(room, me, msg.id);
+    else if (msg.t === 'plan_decline') registry.declinePlan(room, me, msg.id);
+    else if (msg.t === 'plan_suggest') registry.suggestPlan(room, me, msg.id, msg.place, msg.note);
     else if (msg.t === 'plan_cancel') registry.cancelPlan(room, me, msg.id);
     else if (msg.t === 'plan_ping') registry.pingPlan(room, me, msg.id);
     else if (msg.t === 'bubble') registry.say(room, me, msg.emoji, msg.text);

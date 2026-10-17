@@ -5,12 +5,14 @@ import {
   COLORS,
   BUBBLE_EMOJI_MAX,
   BUBBLE_MAX,
+  CONTACT_MAX,
   EVENT_NAME_MAX,
   MAX_PLANS_PER_PLAYER,
   MOOD_EMOJI,
   MOOD_LABEL,
   MOOD_TEXT_MAX,
   MAX_PLANS_PER_ROOM,
+  MAX_SUGGESTIONS_PER_PLAN,
   MAX_PLAYERS_PER_ROOM,
   MOODS,
   NAME_MAX,
@@ -148,7 +150,7 @@ export class RoomRegistry {
   join(
     room: Room,
     conn: Conn,
-    hello: { name: unknown; avatar: unknown; color: unknown; token?: unknown; organizer?: unknown },
+    hello: { name: unknown; avatar: unknown; color: unknown; token?: unknown; organizer?: unknown; contact?: unknown },
   ): { id: string } | { error: 'room_full' } {
     const now = this.opts.now();
     room.lastActive = now;
@@ -190,6 +192,7 @@ export class RoomRegistry {
           sharing: false,
           mood: null,
           organizer: false,
+          contact: '',
         },
       };
       room.members.set(member.player.id, member);
@@ -200,6 +203,7 @@ export class RoomRegistry {
     p.avatar = (AVATARS as readonly string[]).includes(hello.avatar as string) ? (hello.avatar as string) : p.avatar;
     p.color = (COLORS as readonly string[]).includes(hello.color as string) ? (hello.color as string) : p.color;
     if (typeof hello.organizer === 'boolean') p.organizer = hello.organizer; // absent on a resume keeps what they had
+    if (typeof hello.contact === 'string') p.contact = cleanText(hello.contact, CONTACT_MAX);
     p.online = true;
 
     conn.send({
@@ -261,8 +265,10 @@ export class RoomRegistry {
       if (plan.by === id) {
         room.plans.delete(plan.id);
         this.broadcast(room, { t: 'plan_gone', id: plan.id });
-      } else if (plan.joined.includes(id)) {
+      } else if (plan.joined.includes(id) || plan.declined.includes(id) || plan.suggestions.some((s) => s.by === id)) {
         plan.joined = plan.joined.filter((j) => j !== id);
+        plan.declined = plan.declined.filter((d) => d !== id);
+        plan.suggestions = plan.suggestions.filter((s) => s.by !== id);
         this.broadcast(room, { t: 'plan', plan });
       }
     }
@@ -280,6 +286,20 @@ export class RoomRegistry {
     const m = room.members.get(id);
     if (!m || typeof on !== 'boolean' || m.player.organizer === on) return;
     m.player.organizer = on;
+    room.lastActive = this.opts.now();
+    this.broadcast(room, { t: 'player', player: m.player });
+  }
+
+  // --- contact cards -----------------------------------------------------------
+
+  /** The contact line on my card. Plain text, capped; shown only to people in this event, gone when I leave. */
+  setContact(room: Room, id: string, text: unknown) {
+    const m = room.members.get(id);
+    if (!m || typeof text !== 'string') return;
+    const contact = cleanText(text, CONTACT_MAX);
+    if (m.player.contact === contact) return;
+    m.player.contact = contact;
+    m.active = true;
     room.lastActive = this.opts.now();
     this.broadcast(room, { t: 'player', player: m.player });
   }
@@ -370,6 +390,8 @@ export class RoomRegistry {
       lat: input.lat,
       lng: input.lng as number,
       joined: [id],
+      declined: [],
+      suggestions: [],
       createdAt: now,
     };
     room.plans.set(plan.id, plan);
@@ -382,8 +404,41 @@ export class RoomRegistry {
     const plan = typeof planId === 'string' ? room.plans.get(planId) : undefined;
     if (!plan || !room.members.has(id) || plan.joined.includes(id)) return;
     plan.joined = [...plan.joined, id];
+    plan.declined = plan.declined.filter((d) => d !== id); // changed their mind
     room.members.get(id)!.active = true;
     room.lastActive = this.opts.now();
+    this.broadcast(room, { t: 'plan', plan });
+  }
+
+  /** "No thanks". The creator cannot decline their own plan (they can cancel it). Declining drops you from "I'm in". */
+  declinePlan(room: Room, id: string, planId: unknown) {
+    const plan = typeof planId === 'string' ? room.plans.get(planId) : undefined;
+    const m = room.members.get(id);
+    if (!plan || !m || plan.by === id || plan.declined.includes(id)) return;
+    plan.joined = plan.joined.filter((j) => j !== id);
+    plan.declined = [...plan.declined, id];
+    m.active = true;
+    room.lastActive = this.opts.now();
+    this.broadcast(room, { t: 'plan', plan });
+  }
+
+  /** "How about this instead?" One suggestion per person per plan (a new one replaces the old), a handful per plan, and not on your own plan. */
+  suggestPlan(room: Room, id: string, planId: unknown, place: unknown, note?: unknown) {
+    const plan = typeof planId === 'string' ? room.plans.get(planId) : undefined;
+    const m = room.members.get(id);
+    if (!plan || !m || plan.by === id) return;
+    const text = cleanText(place, PLACE_MAX);
+    if (!text) return this.tell(room, id, 'bad_plan');
+    const now = this.opts.now();
+    if (m.lastBubbleAt && now - m.lastBubbleAt < this.opts.bubbleCooldownMs) return this.tell(room, id, 'slow_down');
+    const others = plan.suggestions.filter((s) => s.by !== id);
+    if (others.length >= MAX_SUGGESTIONS_PER_PLAN) return this.tell(room, id, 'plan_limit');
+    m.lastBubbleAt = now;
+    m.active = true;
+    plan.suggestions = [...others, { id: randomId(6), by: id, byName: m.player.name, place: text, note: cleanText(note, NOTE_MAX), at: now }];
+    plan.declined = plan.declined.includes(id) ? plan.declined : [...plan.declined, id]; // suggesting something else means not this one
+    plan.joined = plan.joined.filter((j) => j !== id);
+    room.lastActive = now;
     this.broadcast(room, { t: 'plan', plan });
   }
 

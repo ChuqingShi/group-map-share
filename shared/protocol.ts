@@ -4,6 +4,8 @@ export const AVATARS = ['🦊', '🐸', '🐼', '🐧', '🦄', '🐙', '🐯', 
 export const COLORS = ['#ff5d73', '#ffb020', '#3ddc84', '#2fb8ff', '#a66cff', '#ff7ad9', '#00c2a8', '#ff8a3d'] as const;
 
 export const NAME_MAX = 24;
+/** A line of contact info on someone's card: a phone number, an email, "find me by the fountain". */
+export const CONTACT_MAX = 80;
 export const EVENT_NAME_MAX = 40;
 export const MAX_PLAYERS_PER_ROOM = 50;
 
@@ -52,6 +54,8 @@ export const PLACE_MAX = 40;
 export const NOTE_MAX = 80;
 export const MAX_PLANS_PER_ROOM = 20;
 export const MAX_PLANS_PER_PLAYER = 3;
+/** Suggestions ("how about somewhere else?") on one plan, one per person. */
+export const MAX_SUGGESTIONS_PER_PLAN = 8;
 /** Thought bubbles are short on purpose: a glance, not a chat. */
 export const BUBBLE_MAX = 60;
 export const BUBBLE_EMOJI_MAX = 8;
@@ -76,6 +80,16 @@ export interface Mood {
   at: number;
 }
 
+/** "How about this instead?": a different place proposed by someone who does not want to go to the plan's. */
+export interface Suggestion {
+  id: string;
+  by: string;
+  byName: string;
+  place: string;
+  note: string;
+  at: number;
+}
+
 /** A place somebody wants the crew to go to. People opt in with `joined`; their treasure path points at it. */
 export interface Plan {
   id: string;
@@ -90,6 +104,10 @@ export interface Plan {
   lng: number;
   /** Player ids who said "I'm in". */
   joined: string[];
+  /** Player ids who said "no thanks". */
+  declined: string[];
+  /** Other places people proposed instead, newest last. */
+  suggestions: Suggestion[];
   createdAt: number;
 }
 
@@ -117,10 +135,14 @@ export interface Player {
   mood: Mood | null;
   /** Ticked "I'm an organizer". While anyone in the event is one, only organizers can plant flags; with none, everyone can. */
   organizer: boolean;
+  /** Whatever contact info they chose to put on their card. Empty when they have not. Only people in the event see it. */
+  contact: string;
 }
 
 export type ClientMsg =
-  | { t: 'hello'; name: string; avatar: string; color: string; token?: string; organizer?: boolean }
+  | { t: 'hello'; name: string; avatar: string; color: string; token?: string; organizer?: boolean; contact?: string }
+  /** Set or clear the contact line on my card. */
+  | { t: 'contact'; text: string }
   /** Say whether I am an organizer (the join form asks too; this is for changing your mind later). */
   | { t: 'organizer'; on: boolean }
   | { t: 'pos'; lat: number; lng: number; acc?: number | null }
@@ -132,6 +154,10 @@ export type ClientMsg =
   | { t: 'plan'; kind: PlanKind; place: string; note?: string; lat: number; lng: number; ping?: boolean }
   | { t: 'plan_join'; id: string }
   | { t: 'plan_leave'; id: string }
+  /** "No thanks": not coming to this plan. */
+  | { t: 'plan_decline'; id: string }
+  /** "How about somewhere else?" Open to everyone, including non organizers. */
+  | { t: 'plan_suggest'; id: string; place: string; note?: string }
   /** Creator only. */
   | { t: 'plan_cancel'; id: string }
   /** Creator only: send the invitation again. */

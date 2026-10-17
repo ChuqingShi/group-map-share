@@ -146,6 +146,39 @@ test('a resumed player keeps their organizer choice unless the new hello says ot
   assert.equal(b.player.organizer, false, 'a string is not a boolean');
 });
 
+test('contact cards: a short plain text line, set at join or later, cleared with an empty string, bounded and clean', () => {
+  const { reg, room, join } = setup();
+  const conn = fakeConn();
+  const r = reg.join(room, conn, { name: 'Ann', avatar: '🦊', color: '#ff5d73', contact: '  +1 310 555 0100 \n ' }) as { id: string };
+  const bob = join('Bob');
+  const card = () => room.members.get(r.id)!.player.contact;
+  assert.equal(card(), '+1 310 555 0100', 'from the join form, cleaned');
+  assert.equal(room.members.get(bob.id)!.player.contact, '', 'empty by default');
+
+  reg.setContact(room, r.id, 'ann@example.com');
+  assert.equal(card(), 'ann@example.com');
+  const seen = bob.conn.inbox.findLast((m) => m.t === 'player' && m.player.id === r.id);
+  assert.equal(seen?.t === 'player' && seen.player.contact, 'ann@example.com', 'the crew is told');
+
+  reg.setContact(room, r.id, 'x'.repeat(500));
+  assert.equal([...card()].length, 80, 'capped');
+  reg.setContact(room, r.id, 'find me\u0000 by the \u202Efountain');
+  assert.equal(card(), 'find me by the fountain', 'control and bidi characters stripped');
+  reg.setContact(room, r.id, 7);
+  reg.setContact(room, r.id, null);
+  assert.equal(card(), 'find me by the fountain', 'non-strings are ignored');
+  reg.setContact(room, r.id, '');
+  assert.equal(card(), '', 'an empty string clears it');
+  reg.setContact(room, 'nobody', 'x'); // unknown member: no throw
+  // A resume without the field keeps it; with the field replaces it.
+  reg.setContact(room, r.id, 'keep me');
+  const token = (conn.inbox[0] as Extract<ServerMsg, { t: 'welcome' }>).token;
+  reg.join(room, fakeConn(), { name: 'Ann', avatar: '🦊', color: '#ff5d73', token });
+  assert.equal(card(), 'keep me');
+  reg.join(room, fakeConn(), { name: 'Ann', avatar: '🦊', color: '#ff5d73', token, contact: 'new one' });
+  assert.equal(card(), 'new one');
+});
+
 test('a plan starts with its creator joined and is broadcast with the name frozen in', () => {
   const { reg, room, join } = setup();
   const a = join('Eric');
@@ -221,6 +254,57 @@ test('people opt in and out of a plan; only the creator can cancel it', () => {
   reg.cancelPlan(room, a.id, plan.id);
   assert.equal(room.plans.size, 0);
   assert.ok(b.conn.inbox.some((m) => m.t === 'plan_gone' && m.id === plan.id));
+});
+
+test('no thanks and suggest something else: anyone can, the creator cannot on their own plan, and it is bounded', () => {
+  const { reg, room, join, tick } = setup();
+  const ann = join('Ann');
+  const bob = join('Bob');
+  const cy = join('Cy');
+  tick(200);
+  const plan = reg.createPlan(room, ann.id, { ...lunch, ping: true })!;
+  reg.joinPlan(room, bob.id, plan.id);
+  const p = () => room.plans.get(plan.id)!;
+
+  reg.declinePlan(room, bob.id, plan.id);
+  assert.deepEqual(p().joined, [ann.id], 'no thanks removes them from I am in');
+  assert.deepEqual(p().declined, [bob.id]);
+  reg.declinePlan(room, bob.id, plan.id); // twice is fine
+  assert.deepEqual(p().declined, [bob.id]);
+  reg.declinePlan(room, ann.id, plan.id);
+  assert.deepEqual(p().declined, [bob.id], 'the creator cancels instead of declining');
+  reg.joinPlan(room, bob.id, plan.id);
+  assert.deepEqual(p().declined, [], 'changing your mind clears the no thanks');
+
+  tick(600);
+  reg.suggestPlan(room, cy.id, plan.id, '  Blue \u0000 Bottle ', 'closer to the pier');
+  assert.equal(p().suggestions.length, 1);
+  assert.deepEqual({ place: p().suggestions[0].place, note: p().suggestions[0].note, by: p().suggestions[0].by, name: p().suggestions[0].byName }, { place: 'Blue Bottle', note: 'closer to the pier', by: cy.id, name: 'Cy' });
+  assert.ok(p().declined.includes(cy.id), 'suggesting something else counts as not this one');
+  assert.ok(bob.conn.inbox.some((m) => m.t === 'plan' && m.plan.suggestions.length === 1), 'everyone sees it');
+
+  tick(600);
+  reg.suggestPlan(room, cy.id, plan.id, 'The Rooftop', '');
+  assert.equal(p().suggestions.length, 1, 'one suggestion per person: a new one replaces the old');
+  assert.equal(p().suggestions[0].place, 'The Rooftop');
+  reg.suggestPlan(room, ann.id, plan.id, 'My own plan', ''); // creator suggesting on their own plan: ignored
+  assert.equal(p().suggestions.length, 1);
+  tick(600);
+  reg.suggestPlan(room, bob.id, plan.id, '   ', '');
+  assert.equal(errorsIn(bob.conn).at(-1), 'bad_plan', 'empty place is refused');
+  reg.suggestPlan(room, bob.id, 'nope', 'x', '');
+  reg.declinePlan(room, bob.id, 7);
+
+  tick(600);
+  reg.suggestPlan(room, bob.id, plan.id, 'Taco Truck', '');
+  assert.equal(p().suggestions.length, 2);
+  reg.suggestPlan(room, bob.id, plan.id, 'Too fast', '');
+  assert.equal(errorsIn(bob.conn).at(-1), 'slow_down', 'rate limited like thought bubbles');
+  assert.equal(p().suggestions.find((x) => x.by === bob.id)?.place, 'Taco Truck', 'the too-fast one did not replace it');
+
+  reg.leave(room, cy.id);
+  assert.deepEqual(p().suggestions.map((x) => x.by), [bob.id], 'a suggestion goes with the person who made it');
+  assert.ok(!p().declined.includes(cy.id));
 });
 
 test('when a player leaves, their plans vanish and they drop out of others', () => {
