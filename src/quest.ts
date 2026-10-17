@@ -14,7 +14,7 @@ export interface QuestStep {
 export const STEPS: readonly QuestStep[] = [
   { id: 'mood', icon: '😋', title: 'Set your mood', hint: 'Mood in the toolbar, then tap one. Your crew sees a badge on your pic.' },
   { id: 'talk', icon: '🎙', title: 'Say something', hint: 'Talk in the toolbar. Speak or type "let\'s go eat at Joe\'s Tacos", then Send.' },
-  { id: 'flag', icon: '🚩', title: 'Plant a flag and ping the crew', hint: 'Flags, then Plant a flag. Tap the map or "Where I am". Leave "Let everyone know now" on.' },
+  { id: 'flag', icon: '🚩', title: 'Plant a flag and ping the crew', hint: 'Drag the flag onto the map (or Flags, then Plant a flag) and tap Plant. If the event has an organizer, only organizers can.' },
   { id: 'imin', icon: '🔔', title: 'Say "I\'m in" to a friend\'s flag', hint: 'Needs a second phone: a friend scans your QR and plants a flag. Tap I\'m in on their toast and watch your treasure trail appear.' },
   { id: 'reopen', icon: '🔁', title: 'Close the app, then reopen it', hint: 'You should land right back in the same event, no form.' },
   { id: 'leave', icon: '🚪', title: 'Leave the event', hint: 'Leave in the toolbar, tapped twice. You vanish for everyone, and the event leaves your list.' },

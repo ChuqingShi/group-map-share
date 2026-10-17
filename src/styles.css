@@ -411,3 +411,68 @@ input::placeholder { color: #5b6275; opacity: 1; }
 /* The event name takes whatever room the buttons leave and shortens with an ellipsis, so Invite never gets pushed off screen. */
 button.chip { flex: 1 1 0; min-width: 0; max-width: none; }
 .hud-actions { flex: none; }
+
+/* ---------- the big round Talk button, in the middle where a thumb lands ---------- */
+.toolbar { align-items: flex-end; }
+.tool-talk {
+  flex: none; width: 92px; height: 92px; min-height: 0; margin-top: -36px; padding: 0; border-radius: 50%; z-index: 2;
+  background: var(--gold); border: 4px solid var(--ink);
+  box-shadow: 0 0 0 3px var(--cream), 0 0 0 6px var(--ink), 4px 9px 0 6px rgba(0, 0, 0, 0.35);
+}
+.tool-talk .tool-icon { font-size: 2.3rem; }
+.tool-talk .tool-label { font-size: 11px; letter-spacing: 0.1em; }
+.tool-talk:active { transform: translate(2px, 3px); box-shadow: 0 0 0 3px var(--cream), 0 0 0 6px var(--ink), 1px 3px 0 6px rgba(0, 0, 0, 0.35); }
+/* The raised button pokes above the bar, so keep the names list clear of it. */
+.players { margin-bottom: 44px; }
+.room.names-open .maplibregl-ctrl-bottom-right { bottom: calc(max(15px, env(safe-area-inset-bottom)) + min(32vh, 205px) + 140px); }
+
+/* ---------- the flag you can drag ---------- */
+.tool-flag { position: relative; touch-action: none; }
+.tool-flag.is-dragging { opacity: 0.55; }
+.flag-tip {
+  position: absolute; bottom: calc(100% + 12px); left: 50%; translate: -50% 0; white-space: nowrap; pointer-events: none;
+  background: var(--ink); color: var(--cream); border: 2px solid var(--gold); padding: 5px 10px;
+  font: 900 0.68rem var(--head); letter-spacing: 0.08em; text-transform: uppercase; animation: bob 1.4s ease-in-out infinite;
+}
+.flag-tip::after { content: ''; position: absolute; top: 100%; left: 50%; translate: -50% 0; border: 6px solid transparent; border-top-color: var(--gold); }
+.flag-ghost { position: fixed; z-index: 60; width: 0; height: 0; pointer-events: none; }
+.flag-ghost-ring {
+  position: absolute; left: -20px; top: -20px; width: 40px; height: 40px; border-radius: 50%;
+  border: 4px solid var(--ink); background: rgba(224, 165, 38, 0.4); box-shadow: 0 0 0 3px var(--cream);
+}
+.flag-ghost-flag { position: absolute; left: -3px; bottom: 2px; font-size: 2.8rem; line-height: 1; filter: drop-shadow(2px 3px 0 rgba(0, 0, 0, 0.35)); animation: sway 0.5s ease-in-out infinite alternate; transform-origin: 6px 100%; }
+@keyframes sway { from { rotate: -4deg; } to { rotate: 4deg; } }
+
+/* ---------- moods you can type ---------- */
+.mood-recent { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+.chip-pill { min-height: 40px; padding: 6px 12px; border: 3px solid var(--ink); border-radius: 0; background: var(--cream); box-shadow: 2px 2px 0 var(--ink); font: 800 0.8rem var(--head); letter-spacing: 0.04em; }
+.mood-custom { margin: 0 0 12px; padding: 8px 10px 4px; border: 3px solid var(--ink); background: var(--cream); }
+.mood-custom-title { font: 900 0.7rem var(--head); letter-spacing: 0.1em; text-transform: uppercase; }
+.emoji-strip { display: flex; gap: 4px; overflow-x: auto; padding: 8px 0 10px; scrollbar-width: none; }
+.emoji-strip::-webkit-scrollbar { display: none; }
+.emoji-pick { flex: none; width: 42px; height: 42px; padding: 0; border: 3px solid var(--ink); border-radius: 0; background: #fff; font-size: 1.3rem; line-height: 1; }
+.emoji-pick.on { background: var(--gold); transform: rotate(-3deg); }
+.mood-custom-row { display: flex; gap: 8px; }
+.mood-custom-row input { flex: 1; min-width: 0; font: inherit; font-family: var(--body); font-size: 1.05rem; padding: 10px 12px; border: 3px solid var(--ink); border-radius: 0; background: #fff; color: var(--ink); }
+.countdown { margin: 0 0 10px; font: 900 1rem var(--head); letter-spacing: 0.06em; text-transform: uppercase; color: var(--red-ink); }
+.leave { margin-top: 10px; }
+
+/* ---------- iPhone: buttons that always feel like buttons ---------- */
+/* No double-tap zoom, no long-press callout, no text selection while a shaky thumb presses. */
+button, summary, [role='button'], .pin, .xmark, .player {
+  touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+}
+.tool-flag { touch-action: none; }
+/* A press moves the button 3 px (the pressed look); a 3 px halo keeps the finger on it, so the tap still counts. */
+.btn, .btn-icon, .tool, .mood, .kind, .chip-pill, .emoji-pick, .crew-avatar, .quest-chip, .toast-x, .btn-link, .btn-link-inline { position: relative; }
+.btn::after, .btn-icon::after, .tool::after, .mood::after, .kind::after, .chip-pill::after, .emoji-pick::after, .crew-avatar::after, .quest-chip::after, .toast-x::after {
+  content: ''; position: absolute; inset: -3px;
+}
+
+/* ---------- organizers ---------- */
+.organizer-check { display: flex; align-items: flex-start; gap: 10px; margin: 0 0 14px; text-align: left; font-size: 0.95rem; line-height: 1.3; }
+.organizer-check input { width: 22px; height: 22px; flex: none; margin-top: 1px; accent-color: var(--gold); }
+.organizer-check em { font-style: italic; opacity: 0.85; }
+.crew-org { position: absolute; left: -8px; top: -8px; width: 22px; height: 22px; border-radius: 50%; background: var(--gold); border: 2px solid var(--ink); display: grid; place-items: center; font-size: 0.7rem; line-height: 1; }
+/* The drag tip sits above the round Talk button's rim, not behind it. */
+.flag-tip { bottom: calc(100% + 50px); }

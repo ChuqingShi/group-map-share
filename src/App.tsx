@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { LatLng } from './geo.ts';
 import QRCode from 'qrcode';
-import { AVATARS, COLORS, MOOD_EMOJI, NAME_MAX, planBubble, type MoodId, type PlanKind, type Player } from '../shared/protocol.ts';
+import { AVATARS, COLORS, NAME_MAX, planBubble, type PlanKind, type Player } from '../shared/protocol.ts';
 import MapView, { type MapHandle } from './MapView.tsx';
 import { LEGEND, drawTerrain } from './mapStyle.ts';
 import { distanceM, formatAgo, formatDistance } from './geo.ts';
@@ -10,9 +10,11 @@ import { useGeolocation, type GeoError } from './useGeolocation.ts';
 import { requestLocation, saveStart, savedStart } from './startLocation.ts';
 import { store } from './safeStorage.ts';
 import { CrewStrip, Toasts, type ToastItem } from './Crew.tsx';
-import { DropBanner, MoodSheet, PlanForm, PlansPanel, SettingsSheet, TalkSheet, type PlanInput } from './Meetups.tsx';
+import { DropBanner, MoodSheet, PlanForm, PlansPanel, SettingsSheet, TalkSheet, type PlanInput, type TalkPlant } from './Meetups.tsx';
+import { FlagButton } from './FlagDrag.tsx';
+import type { Feeling } from './bubble.ts';
 import { QuestChip, QuestIntro, QuestPanel, useQuest, type QuestApi } from './Quest.tsx';
-import { announcement, metresTo } from './meetup.ts';
+import { announcement, metresTo, moodEmoji, moodText } from './meetup.ts';
 import { buzz, setVoiceOn, speak, unlockVoice, voiceOn } from './voice.ts';
 import { clearNotifications, disableNotifications, enableNotifications, notifyEnabled, notifyPermission, showLocal } from './notify.ts';
 import { keepAwakeOn, setKeepAwake, useKeepAwake, wakeLockSupported } from './keepAwake.ts';
@@ -305,6 +307,8 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
   const now = useNow();
   const meP = room.me ? room.players[room.me] : undefined;
   const mePos = meP?.pos ?? null;
+  // Flags: everyone plants, unless somebody in the event ticked organizer; then only organizers do.
+  const canPlant = !players.some((p) => p.organizer) || !!meP?.organizer;
 
   // Test mission: each step ticks itself off when we see it happen (ignored until the mission is started).
   const resumedAtMount = useRef(Boolean(getEvent(roomId)?.profile)); // was already in this event on this device
@@ -396,6 +400,10 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
       if (p.by === room.me) {
         setSelectedPlan(p.id);
         mapRef.current?.focusPlan(p.id);
+        if (voicePlanted.current) {
+          voicePlanted.current = false;
+          pushToast({ kind: 'info', emoji: '🚩', text: `Planted ${p.place} and pinged the crew.`, action: { label: 'Undo', run: () => room.send({ t: 'plan_cancel', id: p.id }) } }, 8_000);
+        }
       }
     }
     setSelectedPlan((id) => (id && !room.plans[id] ? null : id));
@@ -413,6 +421,32 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
     setPanel(null);
     setPlanStep('drop');
   };
+  /** The flag button was dragged and let go over the map: put the flag there, snapping to a named place under it. */
+  const dropFlagAt = (clientX: number, clientY: number) => {
+    const map = mapRef.current;
+    const at = map?.unprojectClient(clientX, clientY);
+    if (!map || !at) return;
+    const place = map.nearestPlace(at);
+    setDraft(place ? { lat: place.lat, lng: place.lng } : at);
+    setPlanSeed({ kind: place?.kind ?? 'meetup', place: place?.name ?? 'Meet here' });
+    setPanel(null);
+    setPlanStep('form');
+  };
+  /** What you said sets your mood and emoji. */
+  const feel = (f: Feeling | undefined) => {
+    if (f) room.send({ t: 'mood', mood: f.mood, emoji: f.emoji, text: f.text });
+  };
+  /** The settings toggle: tell the room, and remember it for this event so a reconnect does not undo it. */
+  const changeOrganizer = (on: boolean) => {
+    room.send({ t: 'organizer', on });
+    setProfile((p) => {
+      if (!p) return p;
+      const next = { ...p, organizer: on };
+      touchEvent(roomId, { profile: next });
+      return next;
+    });
+  };
+  const voicePlanted = useRef(false);
   const endPlan = () => {
     setPlanStep(null);
     setPlanSeed(null);
@@ -445,7 +479,8 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
 
   /** One tap: remember the event, ask for permissions, ask for location, show the map. */
   const join = async (p: Profile) => {
-    store.set(PROFILE_KEY, JSON.stringify(p));
+    const { organizer: _thisEventOnly, ...rest } = p;
+    store.set(PROFILE_KEY, JSON.stringify(rest));
     unlockVoice();
     rememberEvent(roomId, p);
     if (notifyPermission() === 'default') void enableNotifications().then(setNotifOn);
@@ -506,7 +541,7 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
       {tipP && (
         <div className="crew-tip" role="status">
           <b>{tipP.name}{tipP.id === room.me ? ' (you)' : ''}</b>
-          {tipP.mood && ` · ${MOOD_EMOJI[tipP.mood.id]}${tipP.mood.note ? ` ${tipP.mood.note}` : ''}`}
+          {tipP.mood && ` · ${moodEmoji(tipP.mood)} ${moodText(tipP.mood)}${tipP.mood.note ? ` ${tipP.mood.note}` : ''}`}
           {!tipP.online ? ' · offline' : tipAway !== null ? ` · ${formatDistance(tipAway)} away` : ''}
         </div>
       )}
@@ -535,7 +570,7 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
       ) : panel === 'mood' ? (
         <MoodSheet
           current={meP?.mood ?? null}
-          onShare={(mood, note) => { room.send({ t: 'mood', mood, note }); setPanel(null); }}
+          onShare={(c) => { room.send({ t: 'mood', mood: c.mood, emoji: c.emoji, text: c.text }); setPanel(null); }}
           onClear={() => { room.send({ t: 'mood', mood: null }); setPanel(null); }}
           onClose={() => setPanel(null)}
         />
@@ -546,6 +581,7 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
           me={room.me}
           mePos={mePos}
           selected={selectedPlan}
+          canPlant={canPlant}
           onNew={startPlan}
           onJoin={(id) => { room.send({ t: 'plan_join', id }); setSelectedPlan(id); }}
           onLeave={(id) => {
@@ -571,19 +607,32 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
           onAwake={(on) => { setKeepAwake(on); setAwake(on); }}
           onLegend={() => { setShowLegend(true); setPanel(null); }}
           onQuest={() => { quest.start(); setPanel('quest'); }}
+          organizer={!!meP?.organizer}
+          onOrganizer={changeOrganizer}
+          leaveArmed={leaveArmed}
+          onLeave={leaveTap}
           onClose={() => setPanel(null)}
         />
       ) : panel === 'quest' && quest.state ? (
         <QuestPanel state={quest.state} onClose={() => setPanel(null)} onRestart={quest.start} />
       ) : panel === 'talk' ? (
         <TalkSheet
-          onSend={(b, mood) => {
+          canPlant={canPlant}
+          findPlace={(said) => mapRef.current?.findPlace(said, mePos ?? mapRef.current.center()) ?? null}
+          onSend={(b, feeling) => {
             room.send({ t: 'bubble', emoji: b.emoji, text: b.text });
             quest.done('talk');
-            if (mood) room.send({ t: 'mood', mood: mood as MoodId, note: '' });
+            feel(feeling);
             setPanel(null);
           }}
-          onPlan={(seed) => startPlan(seed)}
+          onPlant={(p: TalkPlant, feeling) => {
+            voicePlanted.current = true;
+            room.send({ t: 'plan', kind: p.kind, place: p.place, note: '', lat: p.lat, lng: p.lng, ping: true });
+            quest.done('talk');
+            feel(feeling);
+            setPanel(null);
+          }}
+          onDropIt={(seed) => startPlan(seed)}
           onClose={() => setPanel(null)}
         />
       ) : (
@@ -602,11 +651,9 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
           )}
           <div className="toolbar" role="toolbar" aria-label="Actions">
             <button type="button" className="tool" data-testid="btn-mood" aria-label="Mood" onClick={() => setPanel('mood')}>
-              <span className="tool-icon">{meP?.mood ? MOOD_EMOJI[meP.mood.id] : '😋'}</span><span className="tool-label">Mood</span>
+              <span className="tool-icon">{meP?.mood ? moodEmoji(meP.mood) : '😋'}</span><span className="tool-label">Mood</span>
             </button>
-            <button type="button" className="tool" data-testid="btn-plans" aria-label={`Plans, ${plans.length}`} onClick={() => setPanel('plans')}>
-              <span className="tool-icon">🚩{plans.length > 0 && <span className="tool-count">{plans.length}</span>}</span><span className="tool-label">Flags</span>
-            </button>
+            <FlagButton count={plans.length} canPlant={canPlant} onTap={() => setPanel('plans')} onDrop={dropFlagAt} />
             <button type="button" className="tool tool-talk" data-testid="btn-talk" aria-label="Talk to the crew" onClick={() => setPanel('talk')}>
               <span className="tool-icon">🎙</span><span className="tool-label">Talk</span>
             </button>
@@ -615,9 +662,6 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
             </button>
             <button type="button" className="tool" data-testid="btn-share" aria-label={sharing ? 'Pause sharing' : 'Share my location'} onClick={() => setSharing(!sharing)}>
               <span className="tool-icon">{sharing ? '⏸' : '▶'}</span><span className="tool-label">{sharing ? 'Pause' : 'Share'}</span>
-            </button>
-            <button type="button" className="tool tool-danger" data-testid="btn-leave" aria-label={leaveArmed ? 'Tap again to leave' : 'Leave'} onClick={leaveTap}>
-              <span className="tool-icon">{leaveArmed ? '❓' : '🚪'}</span><span className="tool-label">{leaveArmed ? 'Sure?' : 'Leave'}</span>
             </button>
           </div>
         </section>
@@ -660,8 +704,8 @@ function PlayerRow({ p, isMe, me, now, clockOffset, onClick }: {
     <li className={`player ${p.online ? '' : 'is-offline'}`} style={{ '--c': p.color } as CSSProperties} onClick={onClick}>
       <span className="player-avatar">{p.avatar}</span>
       <span className="player-text">
-        <span className="player-name">{p.name}{isMe && <em> (you)</em>}{p.mood && <span className="player-mood" title={p.mood.id}> {MOOD_EMOJI[p.mood.id]}</span>}</span>
-        <span className="player-detail">{detail}{ago && p.online && p.sharing ? ` · ${ago}` : ''}{p.mood?.note ? ` · “${p.mood.note}”` : ''}</span>
+        <span className="player-name">{p.name}{isMe && <em> (you)</em>}{p.mood && <span className="player-mood" title={moodText(p.mood)}> {moodEmoji(p.mood)}</span>}</span>
+        <span className="player-detail">{p.organizer ? 'organizer · ' : ''}{detail}{ago && p.online && p.sharing ? ` · ${ago}` : ''}{p.mood?.note ? ` · “${p.mood.note}”` : ''}</span>
       </span>
     </li>
   );
@@ -676,6 +720,7 @@ function rememberEvent(roomId: string, p: Profile) {
 function JoinScreen({ eventName, onJoin }: { eventName: string; onJoin: (p: Profile) => Promise<void> }) {
   const [p, setP] = useState(loadProfile);
   const [editing, setEditing] = useState(() => loadProfile().name.trim().length === 0);
+  const [organizer, setOrganizer] = useState(false);
   const [busy, setBusy] = useState(false);
   const ok = p.name.trim().length > 0 && !busy;
   return (
@@ -687,7 +732,7 @@ function JoinScreen({ eventName, onJoin }: { eventName: string; onJoin: (p: Prof
           e.preventDefault();
           if (ok) {
             setBusy(true);
-            void onJoin({ ...p, name: p.name.trim() });
+            void onJoin({ ...p, name: p.name.trim(), organizer });
           }
         }}
       >
@@ -718,6 +763,10 @@ function JoinScreen({ eventName, onJoin }: { eventName: string; onJoin: (p: Prof
             ))}
           </div>
         </details>
+        <label className="organizer-check">
+          <input type="checkbox" data-testid="join-organizer" checked={organizer} onChange={(e) => setOrganizer(e.target.checked)} />
+          <span>⭐ I'm an organizer <em>(if anyone is, only organizers can plant flags)</em></span>
+        </label>
         <button className="btn btn-big" disabled={!ok}>{busy ? 'Joining…' : '📍 Join & share my location'}</button>
         <p className="fineprint">Only people in this event see where you are, and only while the app is open. Close the app and your location is forgotten after 5 minutes. Leave and you are erased.</p>
       </form>

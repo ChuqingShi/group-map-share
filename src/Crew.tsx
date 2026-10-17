@@ -1,7 +1,8 @@
 // The Animal Crossing style crew strip (round profile pics along the top, names hidden so the
 // map stays visible) and the little toasts that announce pings and thought bubbles.
 import type { CSSProperties } from 'react';
-import { MOOD_EMOJI, type Player } from '../shared/protocol.ts';
+import type { Player } from '../shared/protocol.ts';
+import { moodEmoji, moodText } from './meetup.ts';
 
 export function CrewStrip({ players, me, onPick }: { players: Player[]; me: string | null; onPick: (id: string) => void }) {
   const sorted = players.slice().sort((a, b) => (a.id === me ? -1 : b.id === me ? 1 : a.name.localeCompare(b.name)));
@@ -15,11 +16,12 @@ export function CrewStrip({ players, me, onPick }: { players: Player[]; me: stri
           data-player-id={p.id}
           className={`crew-avatar${p.id === me ? ' is-me' : ''}${p.online ? '' : ' is-offline'}${p.sharing ? '' : ' is-paused'}`}
           style={{ '--c': p.color } as CSSProperties}
-          aria-label={`${p.name}${p.id === me ? ' (you)' : ''}${p.mood ? `, feeling ${p.mood.id}` : ''}${p.online ? '' : ', offline'}${p.sharing ? '' : ', not sharing'}`}
+          aria-label={`${p.name}${p.id === me ? ' (you)' : ''}${p.organizer ? ', organizer' : ''}${p.mood ? `, feeling ${moodText(p.mood)}` : ''}${p.online ? '' : ', offline'}${p.sharing ? '' : ', not sharing'}`}
           onClick={() => onPick(p.id)}
         >
           <span className="crew-face">{p.avatar}</span>
-          {p.mood && <span className="crew-mood">{MOOD_EMOJI[p.mood.id]}</span>}
+          {p.organizer && <span className="crew-org" title="Organizer" data-testid="crew-organizer">⭐</span>}
+          {p.mood && <span className="crew-mood">{moodEmoji(p.mood)}</span>}
         </button>
       ))}
     </nav>
@@ -33,6 +35,8 @@ export interface ToastItem {
   text: string;
   who?: Pick<Player, 'avatar' | 'color' | 'name'>;
   planId?: string;
+  /** One button on the toast, for example Undo. Running it dismisses the toast. */
+  action?: { label: string; run: () => void };
   /** Date.now() after which the toast goes away. */
   until: number;
 }
@@ -51,6 +55,11 @@ export function Toasts({ items, isJoined, onDismiss, onJoin, onShow }: {
           <span className="toast-face" aria-hidden="true">{t.who?.avatar ?? t.emoji}</span>
           <span className="toast-body">
             <span className="toast-text">{t.who && t.kind !== 'ping' ? <b>{t.who.name}: </b> : null}{t.emoji} {t.text}</span>
+            {t.action && (
+              <span className="toast-actions">
+                <button type="button" className="btn btn-small" data-testid="btn-toast-action" onClick={() => { t.action!.run(); onDismiss(t.id); }}>{t.action.label}</button>
+              </span>
+            )}
             {t.kind === 'ping' && t.planId && (
               <span className="toast-actions">
                 {!isJoined(t.planId) && <button type="button" className="btn btn-small" data-testid="btn-toast-join" onClick={() => onJoin(t.planId!, t.id)}>I&apos;m in</button>}

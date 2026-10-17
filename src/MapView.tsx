@@ -3,10 +3,11 @@ import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './map-extras.css';
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
-import { MOOD_EMOJI, PLAN_EMOJI, type Plan, type Player } from '../shared/protocol.ts';
+import { PLAN_EMOJI, type Plan, type Player } from '../shared/protocol.ts';
 import { gameStyle, installPatterns } from './mapStyle.ts';
 import { fallbackView } from './startLocation.ts';
-import { KIND_LABEL, MOOD_LABEL } from './meetup.ts';
+import { KIND_LABEL, moodEmoji, moodText } from './meetup.ts';
+import { findByName, nearestPoi, toFound, type FoundPlace, type Poi } from './places.ts';
 import {
   DOT_RADIUS_STOPS,
   DOT_RING_PX,
@@ -33,6 +34,30 @@ export interface MapHandle {
   focusPoint(p: LatLng): void;
   /** Where the map is looking right now. */
   center(): LatLng;
+  /** The map position under a screen point (for dragging a flag onto the map), or null if the point is not over the map. */
+  unprojectClient(clientX: number, clientY: number): LatLng | null;
+  /** The named place (restaurant, bar...) within `radiusM` of a point, from the map data already on screen. */
+  nearestPlace(p: LatLng, radiusM?: number): FoundPlace | null;
+  /** A place whose name matches what was said, nearest to `near`, from the map data already on screen. */
+  findPlace(said: string, near: LatLng, maxM?: number): FoundPlace | null;
+}
+
+/** Named points of interest in the vector tiles the map has loaded around the view (no network, nothing sent anywhere). */
+function loadedPois(map: maplibregl.Map): Poi[] {
+  if (!map.getSource('omt')) return [];
+  const seen = new Set<string>();
+  const out: Poi[] = [];
+  for (const f of map.querySourceFeatures('omt', { sourceLayer: 'poi' })) {
+    const name = String(f.properties?.['name:en'] ?? f.properties?.name ?? '').trim();
+    const g = f.geometry;
+    if (!name || g.type !== 'Point') continue;
+    const [lng, lat] = g.coordinates;
+    const key = `${name}|${lat.toFixed(5)}|${lng.toFixed(5)}`; // the same place shows up once per tile it touches
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ name, lat, lng, cls: String(f.properties?.class ?? ''), subclass: f.properties?.subclass ? String(f.properties.subclass) : undefined });
+  }
+  return out;
 }
 
 interface Props {
@@ -135,8 +160,8 @@ function renderPin(pin: PinParts, p: Player, isMe: boolean, bubble: Bubble | und
   // Anyone with a bubble floats above the crowd so the cloud is never hidden under another pin.
   el.style.zIndex = bubble ? '6' : isMe ? '4' : '1';
 
-  const moodEmoji = p.mood ? MOOD_EMOJI[p.mood.id] : undefined;
-  if (p.mood && moodEmoji) {
+  const badge = p.mood ? moodEmoji(p.mood) : undefined;
+  if (p.mood && badge) {
     if (!pin.mood) {
       pin.mood = document.createElement('span');
       pin.mood.className = 'pin-mood';
@@ -144,8 +169,8 @@ function renderPin(pin: PinParts, p: Player, isMe: boolean, bubble: Bubble | und
       pin.mood.setAttribute('role', 'img');
       pin.body.append(pin.mood);
     }
-    setText(pin.mood, moodEmoji);
-    setAttr(pin.mood, 'aria-label', `${MOOD_LABEL[p.mood.id]}${p.mood.note ? `: ${p.mood.note}` : ''}`);
+    setText(pin.mood, badge);
+    setAttr(pin.mood, 'aria-label', `${moodText(p.mood)}${p.mood.note ? `: ${p.mood.note}` : ''}`);
   } else if (pin.mood) {
     pin.mood.remove();
     pin.mood = null;
@@ -637,6 +662,23 @@ export default function MapView({ players, me, start, ref, plans, selectedPlan, 
   }, [trails]);
 
   useImperativeHandle(ref, () => ({
+    unprojectClient(x, y) {
+      const map = mapRef.current;
+      const box = containerRef.current?.getBoundingClientRect();
+      if (!map || !box || x < box.left || x > box.right || y < box.top || y > box.bottom) return null;
+      const ll = map.unproject([x - box.left, y - box.top]);
+      return { lat: ll.lat, lng: ll.lng };
+    },
+    nearestPlace(p, radiusM = 40) {
+      const map = mapRef.current;
+      const poi = map && nearestPoi(loadedPois(map), p, radiusM);
+      return poi ? toFound(poi, new Date().getHours()) : null;
+    },
+    findPlace(said, near, maxM = 3000) {
+      const map = mapRef.current;
+      const poi = map && findByName(loadedPois(map), said, near, maxM);
+      return poi ? toFound(poi, new Date().getHours()) : null;
+    },
     fitAll() {
       const map = mapRef.current;
       // Everyone and every flag, so all the treasure trails fit on screen with their X.

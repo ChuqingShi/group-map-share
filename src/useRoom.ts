@@ -9,6 +9,8 @@ export interface Profile {
   name: string;
   avatar: string;
   color: string;
+  /** Ticked "I'm an organizer" for this event. */
+  organizer?: boolean;
 }
 
 import { forgetEvent, getEvent, touchEvent } from './events.ts';
@@ -17,6 +19,7 @@ const NOTICE: Partial<Record<ErrorCode, string>> = {
   slow_down: 'Easy there. Wait a few seconds before the next ping.',
   plan_limit: 'Too many plans already. Cancel one first.',
   bad_plan: 'That plan could not be saved. Check the place name.',
+  organizers_only: 'Only organizers can plant flags in this event.',
 };
 
 /** The creator of a plan pinged the room. `seq` changes on every ping so effects re-run for repeats. */
