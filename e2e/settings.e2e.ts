@@ -4,7 +4,7 @@ import { SPOTS, closeSheet, eventually, openPlans, openSettings, setToggle, setu
 
 const { scenario } = setup();
 
-const TOGGLES = ['btn-notify', 'btn-awake', 'btn-voice', 'btn-legend'];
+const TOGGLES = ['btn-notify', 'btn-awake', 'btn-voice', 'btn-sfx', 'btn-legend'];
 
 scenario('10. settings: the gear opens a window with notify, awake, voice and legend; voice is off by default', async (s) => {
   const ann = await s.player('Ann', SPOTS.ann, { permissions: ['notifications'] });
@@ -31,6 +31,12 @@ scenario('10. settings: the gear opens a window with notify, awake, voice and le
   await eventually(async () => assert.equal(await toggleState(ann.tid('btn-voice')), true), { message: 'voice switched on' });
   await setToggle(ann.tid('btn-voice'), false);
   await eventually(async () => assert.equal(await toggleState(ann.tid('btn-voice')), false), { message: 'voice switched off' });
+  // ... sound effects are on by default and can be switched off and on ...
+  assert.equal(await toggleState(ann.tid('btn-sfx')), true, 'sound effects are on by default');
+  await setToggle(ann.tid('btn-sfx'), false);
+  await eventually(async () => assert.equal(await toggleState(ann.tid('btn-sfx')), false), { message: 'sfx switched off' });
+  await setToggle(ann.tid('btn-sfx'), true);
+  await eventually(async () => assert.equal(await toggleState(ann.tid('btn-sfx')), true), { message: 'sfx switched on' });
   // ... and keep-awake can be tapped without breaking the page (headless Chrome may not grant a wake lock).
   await ann.tid('btn-awake').click();
   await closeSheet(ann, 'settings-sheet');
