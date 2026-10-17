@@ -16,6 +16,7 @@ import { FlagButton } from './FlagDrag.tsx';
 import type { Feeling } from './bubble.ts';
 import { QuestChip, QuestIntro, QuestPanel, useQuest, type QuestApi } from './Quest.tsx';
 import { announcement, metresTo, moodEmoji, moodText } from './meetup.ts';
+import { playSfx, setSfxOn, sfxOn, unlockSfx } from './sfx.ts';
 import { buzz, setVoiceOn, speak, unlockVoice, voiceOn } from './voice.ts';
 import { clearNotifications, disableNotifications, enableNotifications, notifyEnabled, notifyPermission, showLocal } from './notify.ts';
 import { keepAwakeOn, setKeepAwake, useKeepAwake, wakeLockSupported } from './keepAwake.ts';
@@ -60,7 +61,7 @@ export default function App() {
   }, []);
   // Speech needs one user gesture per page load; the first tap anywhere provides it.
   useEffect(() => {
-    const unlock = () => unlockVoice();
+    const unlock = () => { unlockVoice(); unlockSfx(); };
     // Touch screens grant "user activation" on release, not on press.
     addEventListener('pointerup', unlock, { once: true });
     return () => removeEventListener('pointerup', unlock);
@@ -253,6 +254,7 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
   const [cardId, setCardId] = useState<string | null>(null);
   const [suggestId, setSuggestId] = useState<string | null>(null);
   const [voice, setVoice] = useState(voiceOn);
+  const [sfx, setSfx] = useState(sfxOn);
   const [leaveArmed, setLeaveArmed] = useState(false);
   const [notifOn, setNotifOn] = useState(notifyEnabled);
   const [awake, setAwake] = useState(keepAwakeOn);
@@ -274,6 +276,10 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
   const live = room.status === 'live';
   const geo = useGeolocation(profile !== null && sharing && room.status !== 'left');
   useKeepAwake(live && sharing && awake);
+  const joinedSfx = useRef(false);
+  useEffect(() => {
+    if (live && !joinedSfx.current) { joinedSfx.current = true; playSfx('join'); }
+  }, [live]);
 
   // Push my position (and sharing state) to the room.
   // Tell the room whether I am sharing (also after every reconnect), before any position goes out.
@@ -317,6 +323,12 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
   useEffect(() => {
     if (meP?.mood) quest.done('mood');
   }, [meP?.mood]);
+  const lastMood = useRef<unknown>(undefined);
+  useEffect(() => {
+    const m = meP?.mood ?? null;
+    if (lastMood.current !== undefined && lastMood.current !== m) playSfx('mood');
+    if (live) lastMood.current = m;
+  }, [meP?.mood, live]);
   useEffect(() => {
     if (room.me && plans.some((p) => p.by === room.me)) quest.done('flag');
     if (room.me && plans.some((p) => p.by !== room.me && p.joined.includes(room.me!))) quest.done('imin');
@@ -362,6 +374,7 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
     showBubble(plan.by, b.emoji, b.text);
     pushToast({ kind: 'ping', emoji: b.emoji, text: `${plan.byName}: ${b.text}`, who: room.players[plan.by], planId: plan.id }, 10_000);
     setSelectedPlan(plan.id); // shows the dotted trail from me to the flag
+    if (plan.by !== room.me) playSfx('ping');
     buzz();
     speak(announcement(plan, metresTo(mePos, plan)));
     void showLocal(`${plan.byName} · ${room.roomName}`, `${b.emoji} ${b.text}`, { tag: plan.id, url: location.pathname });
@@ -375,6 +388,7 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
     lastBubble.current = ev.seq;
     showBubble(ev.from, ev.emoji, ev.text);
     if (ev.from !== room.me) {
+      playSfx('bubble');
       pushToast({ kind: 'bubble', emoji: ev.emoji, text: ev.text, who: room.players[ev.from] });
       void showLocal(`${room.players[ev.from]?.name ?? 'Someone'} · ${room.roomName}`, `${ev.emoji} ${ev.text}`, { tag: `bubble-${ev.from}`, url: location.pathname });
     }
@@ -399,6 +413,7 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
       if (seenPlans.current.has(p.id)) continue;
       seenPlans.current.add(p.id);
       if (p.by === room.me) {
+        playSfx('plant');
         setSelectedPlan(p.id);
         mapRef.current?.focusPlan(p.id);
         if (voicePlanted.current) {
@@ -490,6 +505,7 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
   };
   const declinePlan = (id: string) => {
     room.send({ t: 'plan_decline', id });
+    playSfx('decline');
     setSelectedPlan((cur) => (cur === id ? null : cur));
   };
   /** My contact line: tell the room, and remember it on this device (and for this event's reconnects). */
@@ -513,6 +529,7 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
         setLeaveArmed(false);
         return;
       }
+      playSfx('leave');
       quest.done('leave');
       void clearNotifications();
       return;
@@ -589,7 +606,7 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
           items={toasts}
           isJoined={isJoined}
           onDismiss={dismissToast}
-          onJoin={(planId, toastId) => { room.send({ t: 'plan_join', id: planId }); setSelectedPlan(planId); dismissToast(toastId); }}
+          onJoin={(planId, toastId) => { room.send({ t: 'plan_join', id: planId }); playSfx('imin'); setSelectedPlan(planId); dismissToast(toastId); }}
           onDecline={(planId, toastId) => { declinePlan(planId); dismissToast(toastId); }}
           onSuggest={(planId, toastId) => { setSuggestId(planId); setPanel('suggest'); dismissToast(toastId); }}
           onShow={(planId, toastId) => { showPlan(planId); dismissToast(toastId); }}
@@ -620,7 +637,7 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
           selected={selectedPlan}
           canPlant={canPlant}
           onNew={startPlan}
-          onJoin={(id) => { room.send({ t: 'plan_join', id }); setSelectedPlan(id); }}
+          onJoin={(id) => { room.send({ t: 'plan_join', id }); playSfx('imin'); setSelectedPlan(id); }}
           onLeave={(id) => {
             room.send({ t: 'plan_leave', id });
             setSelectedPlan((cur) => (cur === id ? null : cur)); // no longer interested: no preview trail either
@@ -644,7 +661,7 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
           onClose={() => setPanel(null)}
           onShowOnMap={() => { mapRef.current?.focus(cardPlayer.id); setPanel(null); }}
           onShowPlan={(id) => { showPlan(id); setPanel(null); }}
-          onJoin={(id) => { room.send({ t: 'plan_join', id }); setSelectedPlan(id); }}
+          onJoin={(id) => { room.send({ t: 'plan_join', id }); playSfx('imin'); setSelectedPlan(id); }}
           onLeave={(id) => room.send({ t: 'plan_leave', id })}
           onSaveContact={saveContact}
         />
@@ -662,6 +679,8 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
       ) : panel === 'settings' ? (
         <SettingsSheet
           voice={voice}
+          sfx={sfx}
+          onSfx={(on) => { setSfxOn(on); setSfx(on); if (on) unlockSfx(); }}
           onVoice={(on) => { setVoiceOn(on); setVoice(on); if (on) unlockVoice(); }}
           notif={notifPhase(notifOn)}
           onNotif={(on) => {
@@ -720,7 +739,7 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
               <span className="tool-icon">{meP?.mood ? moodEmoji(meP.mood) : '😋'}</span><span className="tool-label">Mood</span>
             </button>
             <FlagButton count={plans.length} canPlant={canPlant} onTap={() => setPanel('plans')} onDrop={dropFlagAt} />
-            <button type="button" className="tool tool-talk" data-testid="btn-talk" aria-label="Talk to the crew" onClick={() => setPanel('talk')}>
+            <button type="button" className="tool tool-talk" data-testid="btn-talk" aria-label="Talk to the crew" onClick={() => { setPanel('talk'); playSfx('talk'); }}>
               <span className="tool-icon">🎙</span><span className="tool-label">Talk</span>
             </button>
             <button type="button" className="tool" data-testid="btn-names" aria-label="Names" aria-pressed={namesOpen} onClick={() => setNamesOpen((v) => !v)}>

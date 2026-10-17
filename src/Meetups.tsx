@@ -250,7 +250,7 @@ export function SuggestSheet({ plan, onSend, onClose }: { plan: Plan; onSend: (p
 
 // --- settings ---------------------------------------------------------------------
 
-export function SettingsSheet({ notif, onNotif, awake, awakeSupported, onAwake, voice, onVoice, onLegend, onQuest, organizer, onOrganizer, leaveArmed, onLeave, onClose }: {
+export function SettingsSheet({ notif, onNotif, awake, awakeSupported, onAwake, voice, onVoice, sfx, onSfx, onLegend, onQuest, organizer, onOrganizer, leaveArmed, onLeave, onClose }: {
   notif: 'on' | 'off' | 'blocked' | 'unsupported';
   onNotif: (on: boolean) => void;
   awake: boolean;
@@ -258,6 +258,8 @@ export function SettingsSheet({ notif, onNotif, awake, awakeSupported, onAwake, 
   onAwake: (on: boolean) => void;
   voice: boolean;
   onVoice: (on: boolean) => void;
+  sfx: boolean;
+  onSfx: (on: boolean) => void;
   onLegend: () => void;
   onQuest: () => void;
   organizer: boolean;
@@ -290,6 +292,10 @@ export function SettingsSheet({ notif, onNotif, awake, awakeSupported, onAwake, 
       <label className="voice-toggle">
         <input type="checkbox" data-testid="btn-voice" checked={voice} onChange={(e) => onVoice(e.target.checked)} />
         <span>🔊 Speak pings out loud <em>(off keeps it to toasts and bubbles)</em></span>
+      </label>
+      <label className="voice-toggle">
+        <input type="checkbox" data-testid="btn-sfx" checked={sfx} onChange={(e) => onSfx(e.target.checked)} />
+        <span>🎵 Sound effects</span>
       </label>
       <button type="button" className="btn btn-ghost btn-big" data-testid="btn-legend" onClick={onLegend}>🗺️ Show the map legend</button>
       <button type="button" className="btn btn-ghost btn-big quest-replay" data-testid="btn-quest-replay" onClick={onQuest}>🧪 Replay the test mission</button>
