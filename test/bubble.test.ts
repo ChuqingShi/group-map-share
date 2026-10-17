@@ -3,27 +3,33 @@ import assert from 'node:assert/strict';
 import { summarize } from '../src/bubble.ts';
 import { BUBBLE_MAX, MOODS, PLAN_KINDS } from '../shared/protocol.ts';
 
+/** The summary without the mood judgement, for tests about the bubble itself. */
+const core = (t: string) => {
+  const { feeling: _f, ...rest } = summarize(t);
+  return rest;
+};
+
 const place = (kind: string, p: string) => ({ kind, place: p });
 
 test('the brief: each intent boils down to its emoji, text, mood and plan', () => {
-  assert.deepEqual(summarize("let's go eat at joe's tacos"), {
+  assert.deepEqual(core("let's go eat at joe's tacos"), {
     emoji: '🍔', text: "Eating at Joe's Tacos, join us!", plan: place('lunch', "Joe's Tacos"),
   });
-  assert.deepEqual(summarize("i'm so hungry"), { emoji: '🍔', text: 'Getting hungry…', mood: 'hungry' });
-  assert.deepEqual(summarize('everybody come over here'), { emoji: '📍', text: 'Everyone, over this way!' });
-  assert.deepEqual(summarize('coffee at blue bottle anyone'), {
+  assert.deepEqual(core("i'm so hungry"), { emoji: '🍔', text: 'Getting hungry…', mood: 'hungry' });
+  assert.deepEqual(core('everybody come over here'), { emoji: '📍', text: 'Everyone, over this way!' });
+  assert.deepEqual(core('coffee at blue bottle anyone'), {
     emoji: '☕', text: 'Coffee at Blue Bottle?', plan: place('coffee', 'Blue Bottle'),
   });
-  assert.deepEqual(summarize('i need a coffee'), { emoji: '☕', text: 'Need a coffee…', mood: 'coffee' });
-  assert.deepEqual(summarize("i'm exhausted"), { emoji: '😴', text: 'Feeling tired…', mood: 'tired' });
-  assert.deepEqual(summarize("wait up i'm coming"), { emoji: '✋', text: 'Hold up, wait for me!' });
-  assert.deepEqual(summarize('heading out'), { emoji: '🚶', text: 'Heading out' });
-  assert.deepEqual(summarize("where's the bathroom"), { emoji: '🚻', text: 'Bathroom break' });
-  assert.deepEqual(summarize('drinks at the rooftop bar'), {
+  assert.deepEqual(core('i need a coffee'), { emoji: '☕', text: 'Need a coffee…', mood: 'coffee' });
+  assert.deepEqual(core("i'm exhausted"), { emoji: '😴', text: 'Feeling tired…', mood: 'tired' });
+  assert.deepEqual(core("wait up i'm coming"), { emoji: '✋', text: 'Hold up, wait for me!' });
+  assert.deepEqual(core('heading out'), { emoji: '🚶', text: 'Heading out' });
+  assert.deepEqual(core("where's the bathroom"), { emoji: '🚻', text: 'Bathroom break' });
+  assert.deepEqual(core('drinks at the rooftop bar'), {
     emoji: '🍻', text: 'Drinks at The Rooftop Bar?', plan: place('drinks', 'The Rooftop Bar'),
   });
-  assert.deepEqual(summarize("let's go to lunch"), { emoji: '🍔', text: "Let's grab food, come this way!" });
-  assert.deepEqual(summarize('this is amazing'), { emoji: '💭', text: 'This is amazing' });
+  assert.deepEqual(core("let's go to lunch"), { emoji: '🍔', text: "Let's grab food, come this way!" });
+  assert.deepEqual(core('this is amazing'), { emoji: '💭', text: 'This is amazing' });
 });
 
 test('every intent has a fallback line when no place is named', () => {
@@ -45,9 +51,9 @@ test('first matching intent wins', () => {
 });
 
 test('feelings stay feelings unless somebody is inviting', () => {
-  assert.deepEqual(summarize("i'm starving"), { emoji: '🍔', text: 'Getting hungry…', mood: 'hungry' });
+  assert.deepEqual(core("i'm starving"), { emoji: '🍔', text: 'Getting hungry…', mood: 'hungry' });
   // Hungry plus an invitation and a place is a plan, not a mood.
-  assert.deepEqual(summarize("i'm starving let's eat at joe's"), {
+  assert.deepEqual(core("i'm starving let's eat at joe's"), {
     emoji: '🍔', text: "Eating at Joe's, join us!", plan: place('lunch', "Joe's"),
   });
   assert.equal(summarize('need coffee').mood, 'coffee');
@@ -64,11 +70,11 @@ test('dinner makes a dinner plan', () => {
 });
 
 test('capitals and punctuation do not change the answer', () => {
-  const plain = summarize("let's go eat at joe's tacos");
-  assert.deepEqual(summarize("Let's go eat at Joe's Tacos, everyone!"), plain);
-  assert.deepEqual(summarize("LET'S GO EAT AT JOE'S TACOS!!!"), plain);
-  assert.deepEqual(summarize('  let\u2019s   go eat\nat joe\u2019s tacos.  '), plain);
-  assert.deepEqual(summarize("Let's go eat at Joe's Tacos right now, please."), plain);
+  const plain = core("let's go eat at joe's tacos");
+  assert.deepEqual(core("Let's go eat at Joe's Tacos, everyone!"), plain);
+  assert.deepEqual(core("LET'S GO EAT AT JOE'S TACOS!!!"), plain);
+  assert.deepEqual(core('  let\u2019s   go eat\nat joe\u2019s tacos.  '), plain);
+  assert.deepEqual(core("Let's go eat at Joe's Tacos right now, please."), plain);
   assert.equal(summarize('I NEED A COFFEE').mood, 'coffee');
 });
 
@@ -128,7 +134,7 @@ test('unicode apostrophes, emoji and odd whitespace are handled', () => {
   const s = summarize('let\u2019s eat \u{1F355} at joe\u2019s tacos \u{1F32E}\u{1F44D}\u{1F3FD}');
   assert.deepEqual(s, summarize("let's eat at joe's tacos"));
   assert.equal(s.plan?.place, "Joe's Tacos");
-  assert.deepEqual(summarize('\u{1F355}\u{1F355}\u{1F355}'), { emoji: '💭', text: '' });
+  assert.deepEqual(core('\u{1F355}\u{1F355}\u{1F355}'), { emoji: '💭', text: '' });
   assert.equal(summarize('this is \u{1F44D} amazing').text, 'This is amazing');
   assert.equal(summarize('\u{1F1FA}\u{1F1F8} flags and \u200Dzwj\uFE0F').emoji, '💭');
 });
@@ -139,7 +145,7 @@ test('silence and punctuation give an empty bubble the caller must not send', ()
     assert.equal(s.emoji, '💭', JSON.stringify(t));
     if (t !== '\u200B') assert.equal(s.text, '', JSON.stringify(t));
   }
-  assert.deepEqual(summarize(''), { emoji: '💭', text: '' });
+  assert.deepEqual(core(''), { emoji: '💭', text: '' });
 });
 
 test('stop words alone and nonsense fall back to an echo, never a plan or mood', () => {
@@ -171,8 +177,8 @@ test('long fallbacks are cut at a word boundary and stay within the limit', () =
   const over = 'a'.repeat(30) + ' ' + 'b'.repeat(30); // 61 characters
   assert.equal(summarize(over).text, 'A' + 'a'.repeat(29) + '…');
   // A single "word" longer than the limit has no boundary to cut at, so there is nothing to say.
-  assert.deepEqual(summarize('x'.repeat(200)), { emoji: '💭', text: '' });
-  assert.deepEqual(summarize('https://example.com/' + 'path/'.repeat(30)), { emoji: '💭', text: '' });
+  assert.deepEqual(core('x'.repeat(200)), { emoji: '💭', text: '' });
+  assert.deepEqual(core('https://example.com/' + 'path/'.repeat(30)), { emoji: '💭', text: '' });
 });
 
 test('same words in, same bubble out', () => {
@@ -237,4 +243,17 @@ test('abbreviations and bidi tricks are handled', () => {
   assert.equal(summarize('coffee at 5th Ave. cafe').plan?.place, '5th Ave Cafe');
   const spoof = summarize('lunch at \u202Eevil\u202C tacos');
   assert.ok(!/[\u202A-\u202E\u2066-\u2069]/.test(spoof.text + (spoof.plan?.place ?? '')), 'no bidi overrides survive');
+});
+
+test('what you say sets your mood and emoji: every intent except the echo fallback has a feeling', () => {
+  const eat = summarize("let's go eat at joe's tacos");
+  assert.deepEqual(eat.feeling, { mood: 'hungry', emoji: '🍔', text: 'Hungry' });
+  assert.deepEqual(summarize('i need a coffee').feeling, { mood: 'coffee', emoji: '☕', text: 'Need coffee' });
+  assert.deepEqual(summarize("i'm exhausted").feeling, { mood: 'tired', emoji: '😴', text: 'Tired' });
+  assert.deepEqual(summarize('drinks at the rooftop bar').feeling, { mood: 'custom', emoji: '🍻', text: 'Up for drinks' });
+  assert.deepEqual(summarize('everybody come over here').feeling, { mood: 'custom', emoji: '📍', text: 'Gathering' });
+  assert.deepEqual(summarize('heading out').feeling, { mood: 'custom', emoji: '🚶', text: 'Heading out' });
+  assert.equal(summarize('this is amazing').feeling, undefined, 'plain chatter does not change your mood');
+  assert.equal(summarize('').feeling, undefined);
+  assert.equal(summarize("i'm not hungry").feeling, undefined, 'a negated feeling is not a feeling');
 });

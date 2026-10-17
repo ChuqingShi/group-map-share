@@ -2,7 +2,7 @@
 // Plain rules on the device: no network, no AI service, and the same words always give the same
 // bubble. Only the gist survives; the one place their own words come back is the last-resort
 // fallback, which echoes the first few so the bubble still says something.
-import { BUBBLE_MAX, type MoodId, type PlanKind } from '../shared/protocol.ts';
+import { BUBBLE_MAX, MOOD_EMOJI, MOOD_LABEL, type MoodId, type PlanKind } from '../shared/protocol.ts';
 
 export interface Summary {
   emoji: string;
@@ -12,7 +12,28 @@ export interface Summary {
   mood?: MoodId;
   /** Set when a place name was found and the intent maps to a plan kind. */
   plan?: { kind: PlanKind; place: string };
+  /** How they seem to feel, judged from their words, so their mood and emoji follow what they say. Not set for the echo fallback. */
+  feeling?: Feeling;
 }
+
+export interface Feeling {
+  mood: MoodId | 'custom';
+  emoji: string;
+  text: string;
+}
+
+const preset = (id: MoodId): Feeling => ({ mood: id, emoji: MOOD_EMOJI[id], text: MOOD_LABEL[id] });
+/** Which feeling goes with each bubble. Wanting food or coffee is being hungry or needing coffee; the rest are custom moods. */
+const FEELING_OF: Record<string, Feeling | undefined> = {
+  '🍔': preset('hungry'),
+  '☕': preset('coffee'),
+  '😴': preset('tired'),
+  '🍻': { mood: 'custom', emoji: '🍻', text: 'Up for drinks' },
+  '✋': { mood: 'custom', emoji: '✋', text: 'Hold on' },
+  '📍': { mood: 'custom', emoji: '📍', text: 'Gathering' },
+  '🚶': { mood: 'custom', emoji: '🚶', text: 'Heading out' },
+  '🚻': { mood: 'custom', emoji: '🚻', text: 'Back soon' },
+};
 
 const ELLIPSIS = '…';
 const THOUGHT = '💭';
@@ -190,5 +211,8 @@ export function summarize(transcript: string): Summary {
   const probe = text.replace(NEGATED_FEELING, ' ').replace(/\s+/g, ' ').trim();
   const rule = RULES.find(([re]) => re.test(probe));
   const s = rule ? rule[1](probe) : echo(text);
-  return { ...s, text: fit(s.text) };
+  const out: Summary = { ...s, text: fit(s.text) };
+  const feeling = s.mood ? preset(s.mood) : FEELING_OF[s.emoji];
+  if (feeling && out.text) out.feeling = feeling;
+  return out;
 }

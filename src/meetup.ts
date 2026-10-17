@@ -1,7 +1,14 @@
 // Pure helpers for moods and meetup plans: the sentence that gets spoken, walking time,
 // and the curved "treasure map" trail from a person to the X.
 import { distanceM, type LatLng } from './geo.ts';
-import type { MoodId, Plan, PlanKind } from '../shared/protocol.ts';
+import { MOOD_LABEL, type Mood, type Plan, type PlanKind } from '../shared/protocol.ts';
+
+export { MOOD_LABEL };
+
+/** What to show for someone's mood on a pin or avatar: their emoji, or a speech bubble if they chose none. */
+export const moodEmoji = (m: Pick<Mood, 'emoji'>) => m.emoji || '💬';
+/** What to say for it: the preset name or whatever they typed. */
+export const moodText = (m: Pick<Mood, 'label' | 'emoji'>) => m.label || 'Feeling something';
 
 export const KIND_LABEL: Record<PlanKind, string> = {
   lunch: 'Lunch',
@@ -11,15 +18,6 @@ export const KIND_LABEL: Record<PlanKind, string> = {
   meetup: 'Meet up',
 };
 
-export const MOOD_LABEL: Record<MoodId, string> = {
-  hungry: 'Hungry',
-  thirsty: 'Thirsty',
-  coffee: 'Need coffee',
-  tired: 'Tired',
-  bored: 'Bored',
-  hyped: 'Hyped',
-  chill: 'Chill',
-};
 
 const PHRASE: Record<PlanKind, (place: string) => string> = {
   lunch: (p) => `for lunch at ${p}`,

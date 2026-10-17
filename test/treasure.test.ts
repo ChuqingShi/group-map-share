@@ -13,6 +13,7 @@ const player = (id: string, lat: number, lng: number, over: Partial<Player> = {}
   online: true,
   sharing: true,
   mood: null,
+  organizer: false,
   ...over,
 });
 
