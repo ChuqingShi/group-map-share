@@ -261,6 +261,10 @@ const NO_TRAILS: TrailCollection = { type: 'FeatureCollection', features: [] };
 /** The marching dots cycle through this many positions, one every DOT_STEP_MS. */
 const DOT_STEPS = 12;
 const DOT_STEP_MS = 90;
+/** All trails together share this many dots, so 30 people heading for 5 flags stay cheap on a mid-range phone. */
+const TOTAL_DOT_BUDGET = 1_200;
+/** Past this many trails the dots stop marching (they still show) rather than hammer the map. */
+const MAX_ANIMATED_TRAILS = 40;
 
 const previewOpacity = ['case', ['get', 'preview'], 0.55, 1] as never;
 const dotRadiusExpr = ['interpolate', ['linear'], ['zoom'], ...DOT_RADIUS_STOPS.flat()] as never;
@@ -291,11 +295,12 @@ function createTrailLayer(map: maplibregl.Map): TrailLayer {
     const zoom = map.getZoom();
     const phase = reduced ? 0 : step / DOT_STEPS;
     const px = dotSpacingPx(zoom);
+    const budget = Math.max(24, Math.floor(TOTAL_DOT_BUDGET / Math.max(1, trails.features.length)));
     return {
       type: 'FeatureCollection' as const,
       features: trails.features.flatMap((f) => {
         const spacingM = px * metresPerPixel(zoom, f.geometry.coordinates[0][1]);
-        return dotsAlong(f.geometry.coordinates, spacingM, phase).map((coordinates) => ({
+        return dotsAlong(f.geometry.coordinates, spacingM, phase, budget).map((coordinates) => ({
           type: 'Feature' as const,
           properties: { preview: f.properties.preview },
           geometry: { type: 'Point' as const, coordinates },
@@ -351,13 +356,15 @@ function createTrailLayer(map: maplibregl.Map): TrailLayer {
   // Only touch the map when the step actually changed (about 11 times a second, and only with trails on screen).
   const frame = (now: number) => {
     raf = requestAnimationFrame(frame);
-    const next = Math.floor(now / DOT_STEP_MS) % DOT_STEPS;
+    // Crowded maps march at half speed: fewer updates sent to the map worker.
+    const stepMs = trails.features.length > 10 ? DOT_STEP_MS * 2 : DOT_STEP_MS;
+    const next = Math.floor(now / stepMs) % DOT_STEPS;
     if (next === step) return;
     step = next;
     paintDots();
   };
   const syncMotion = () => {
-    const run = !reduced && trails.features.length > 0;
+    const run = !reduced && trails.features.length > 0 && trails.features.length <= MAX_ANIMATED_TRAILS;
     if (run && !raf) raf = requestAnimationFrame(frame);
     else if (!run && raf) {
       cancelAnimationFrame(raf);

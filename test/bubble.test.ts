@@ -113,7 +113,7 @@ test('places stop at stop words and punctuation', () => {
   assert.equal(summarize('lunch at joes because its cheap').plan?.place, 'Joes');
   assert.equal(summarize('eat at joes guys').plan?.place, 'Joes');
   assert.equal(summarize('coffee at "blue bottle" please').plan?.place, 'Blue Bottle');
-  assert.equal(summarize('lunch at st. marks place').plan?.place, 'St');
+  assert.equal(summarize('lunch at st. marks place').plan?.place, 'St Marks Place');
 });
 
 test('very long place names are cut at a word boundary, at most 30 characters', () => {
@@ -212,4 +212,29 @@ test('summarize never throws and always respects the contract, whatever it is fe
     }
   }
   for (const bad of [undefined, null, 42, {}] as unknown as string[]) assert.doesNotThrow(() => summarize(bad));
+});
+
+test('a feeling they said they do NOT have never becomes a mood or a bubble about it', () => {
+  for (const said of ["i'm not hungry", 'not tired at all', "i'm never hungry", "I'm not even that tired", "isn't sleepy"]) {
+    const s = summarize(said);
+    assert.equal(s.mood, undefined, said);
+    assert.equal(s.emoji, '💭', said);
+  }
+  const mixed = summarize("i'm not tired let's eat at joe's tacos");
+  assert.equal(mixed.plan?.place, "Joe's Tacos");
+  assert.equal(mixed.mood, undefined);
+});
+
+test('chit-chat that contains a keyword in another sense does not trigger it', () => {
+  assert.equal(summarize("can't wait to see you").emoji, '💭');
+  assert.equal(summarize('i beat the traffic').emoji, '💭');
+  assert.equal(summarize('wait up i am coming').emoji, '✋');
+  assert.equal(summarize('wait for me please').emoji, '✋');
+});
+
+test('abbreviations and bidi tricks are handled', () => {
+  assert.equal(summarize('meet me at St. Marks Place').plan?.place, 'St Marks Place');
+  assert.equal(summarize('coffee at 5th Ave. cafe').plan?.place, '5th Ave Cafe');
+  const spoof = summarize('lunch at \u202Eevil\u202C tacos');
+  assert.ok(!/[\u202A-\u202E\u2066-\u2069]/.test(spoof.text + (spoof.plan?.place ?? '')), 'no bidi overrides survive');
 });

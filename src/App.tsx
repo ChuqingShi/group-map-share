@@ -8,8 +8,10 @@ import { distanceM, formatAgo, formatDistance } from './geo.ts';
 import { useRoom, type Profile } from './useRoom.ts';
 import { useGeolocation, type GeoError } from './useGeolocation.ts';
 import { requestLocation, saveStart, savedStart } from './startLocation.ts';
+import { store } from './safeStorage.ts';
 import { CrewStrip, Toasts, type ToastItem } from './Crew.tsx';
 import { DropBanner, MoodSheet, PlanForm, PlansPanel, SettingsSheet, TalkSheet, type PlanInput } from './Meetups.tsx';
+import { QuestChip, QuestIntro, QuestPanel, useQuest, type QuestApi } from './Quest.tsx';
 import { announcement, metresTo } from './meetup.ts';
 import { buzz, setVoiceOn, speak, unlockVoice, voiceOn } from './voice.ts';
 import { clearNotifications, disableNotifications, enableNotifications, notifyEnabled, notifyPermission, showLocal } from './notify.ts';
@@ -17,10 +19,27 @@ import { keepAwakeOn, setKeepAwake, useKeepAwake, wakeLockSupported } from './ke
 import { forgetEvent, getEvent, loadEvents, saveEvent, touchEvent, type SavedEvent } from './events.ts';
 
 const HOST_KEY_STORE = 'gms-host-key';
+/** Only a real "no" is remembered. A timeout or a missing GPS signal is not a refusal. */
+function rememberDenial(e: unknown) {
+  if (e === 'denied') saveStart('declined');
+}
+
 const roomIdFromPath = () => location.pathname.match(/^\/r\/([\w-]+)/)?.[1] ?? null;
 
 export default function App() {
   const [roomId, setRoomId] = useState(roomIdFromPath);
+  const autoResume = useRef<boolean | null>(null);
+  if (autoResume.current === null) autoResume.current = consumeAutoResume(roomIdFromPath() === null);
+  // Spent after the first render: coming back to the list later (event chip, Back) must show the list, not bounce into the room.
+  useEffect(() => {
+    autoResume.current = false;
+  }, []);
+  // Which build is the server running? A new build shows the test mission once.
+  const [build, setBuild] = useState<string | null>(null);
+  useEffect(() => {
+    fetch('/api/version').then((r) => r.json()).then((b: { build?: string }) => setBuild(b.build ?? null), () => {});
+  }, []);
+  const quest = useQuest(build);
   useEffect(() => {
     const onPop = () => setRoomId(roomIdFromPath());
     addEventListener('popstate', onPop);
@@ -31,7 +50,7 @@ export default function App() {
     const params = new URLSearchParams(location.search);
     const key = params.get('host');
     if (!key) return;
-    localStorage.setItem(HOST_KEY_STORE, key);
+    store.set(HOST_KEY_STORE, key);
     params.delete('host');
     const rest = params.toString();
     history.replaceState(history.state, '', location.pathname + (rest ? `?${rest}` : ''));
@@ -39,38 +58,48 @@ export default function App() {
   // Speech needs one user gesture per page load; the first tap anywhere provides it.
   useEffect(() => {
     const unlock = () => unlockVoice();
-    addEventListener('pointerdown', unlock, { once: true });
-    return () => removeEventListener('pointerdown', unlock);
+    // Touch screens grant "user activation" on release, not on press.
+    addEventListener('pointerup', unlock, { once: true });
+    return () => removeEventListener('pointerup', unlock);
   }, []);
   const go = (id: string | null, state?: unknown) => {
     history.pushState(state ?? null, '', id ? `/r/${id}${location.search}` : `/${location.search}`);
     setRoomId(id);
   };
-  return roomId ? <RoomPage key={roomId} roomId={roomId} onExit={() => go(null)} /> : <Landing onCreated={(id) => go(id, { host: true })} onOpen={(id) => go(id)} />;
+  return (
+    <>
+      {roomId ? <RoomPage key={roomId} roomId={roomId} onExit={() => go(null)} quest={quest} /> : <Landing onCreated={(id) => go(id, { host: true })} onOpen={(id) => go(id)} autoResume={autoResume.current} />}
+      {quest.intro && build && <QuestIntro build={build} onStart={quest.start} onSkip={quest.skip} />}
+    </>
+  );
 }
 
 // --- landing ------------------------------------------------------------
 
-/** First visit of this browser session lands you straight back in your most recent event; later visits to / show the list. */
-function consumeAutoResume(): boolean {
+/**
+ * Opening the app at / for the first time in a browser session lands you straight back in your latest event.
+ * Any other load (a room link, or coming back to the list via the event chip) shows the list instead.
+ * Called once, by App, so the flag is always set by the first load, wherever it landed.
+ */
+function consumeAutoResume(atHome: boolean): boolean {
   try {
     if (sessionStorage.getItem('gms-landed')) return false;
     sessionStorage.setItem('gms-landed', '1');
   } catch {
     return false;
   }
-  return loadEvents().length > 0;
+  return atHome && loadEvents().length > 0;
 }
 
 type ListedEvent = SavedEvent & { here: number | null };
 
-function Landing({ onCreated, onOpen }: { onCreated: (id: string) => void; onOpen: (id: string) => void }) {
+function Landing({ onCreated, onOpen, autoResume: resumeFirst }: { onCreated: (id: string) => void; onOpen: (id: string) => void; autoResume: boolean }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [eventName, setEventName] = useState('');
   const [events, setEvents] = useState<ListedEvent[]>(() => loadEvents().map((e) => ({ ...e, here: null })));
-  const autoResume = useRef(consumeAutoResume());
-  const [resuming, setResuming] = useState(autoResume.current);
+  const autoResume = useRef(resumeFirst);
+  const [resuming, setResuming] = useState(resumeFirst);
 
   // Check which remembered events still exist; forget the ones that ended. Then resume the latest.
   useEffect(() => {
@@ -79,7 +108,7 @@ function Landing({ onCreated, onOpen }: { onCreated: (id: string) => void; onOpe
       const checked = await Promise.all(
         loadEvents().map(async (e): Promise<ListedEvent | null> => {
           try {
-            const r = await fetch(`/api/rooms/${encodeURIComponent(e.id)}`);
+            const r = await fetch(`/api/rooms/${encodeURIComponent(e.id)}`, { signal: AbortSignal.timeout(4_000) });
             if (r.status === 404) {
               forgetEvent(e.id);
               return null;
@@ -107,11 +136,11 @@ function Landing({ onCreated, onOpen }: { onCreated: (id: string) => void; onOpe
     setBusy(true);
     setErr(null);
     // Ask for location inside this tap (no separate screen). Not awaited: the room is created meanwhile.
-    if (!savedStart()) void requestLocation().then(saveStart, () => saveStart('declined'));
+    if (!savedStart()) void requestLocation().then(saveStart, rememberDenial);
     try {
       const res = await fetch('/api/rooms', {
         method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-host-key': localStorage.getItem(HOST_KEY_STORE) ?? '' },
+        headers: { 'content-type': 'application/json', 'x-host-key': store.get(HOST_KEY_STORE) ?? '' },
         body: JSON.stringify({ name: eventName.trim() }),
       });
       const body = await res.json();
@@ -163,7 +192,7 @@ function Landing({ onCreated, onOpen }: { onCreated: (id: string) => void; onOpe
           {busy ? 'Creating…' : '🎮 Create a room'}
         </button>
         {err && <p className="error">{err}</p>}
-        <p className="fineprint">Locations are only shared while the page is open and are never stored. Events vanish after 3 hours with nobody in them, and leaving one erases you from it.</p>
+        <p className="fineprint">Your location is only shared while the app is open. The server keeps it in memory only, forgets it 5 minutes after you close the app, and erases you when you leave. Events vanish after 3 hours with nobody in them.</p>
       </div>
     </div>
   );
@@ -174,7 +203,7 @@ function Landing({ onCreated, onOpen }: { onCreated: (id: string) => void; onOpe
 const PROFILE_KEY = 'gms-profile';
 const loadProfile = (): Profile => {
   try {
-    const p = JSON.parse(localStorage.getItem(PROFILE_KEY) ?? '');
+    const p = JSON.parse(store.get(PROFILE_KEY) ?? '');
     if (p && typeof p.name === 'string') return p;
   } catch { /* first visit */ }
   return {
@@ -184,13 +213,13 @@ const loadProfile = (): Profile => {
   };
 };
 
-type Panel = null | 'mood' | 'plans' | 'talk' | 'settings';
+type Panel = null | 'mood' | 'plans' | 'talk' | 'settings' | 'quest';
 type PlanStep = null | 'drop' | 'form';
 interface Bubble { emoji: string; text: string; at: number }
 
 const BUBBLE_MS = 9_000;
 
-function RoomPage({ roomId, onExit }: { roomId: string; onExit: () => void }) {
+function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => void; quest: QuestApi }) {
   const [exists, setExists] = useState<boolean | null>(null);
   // Already in this event on this device: rejoin as the same player without asking again.
   const [profile, setProfile] = useState<Profile | null>(() => {
@@ -201,7 +230,12 @@ function RoomPage({ roomId, onExit }: { roomId: string; onExit: () => void }) {
     return me && me.name.trim() ? me : null;
   });
   const [eventTitle, setEventTitle] = useState('');
-  const [sharing, setSharing] = useState(true);
+  // Pausing is remembered per event, so reopening the app never quietly switches sharing back on.
+  const [sharing, setSharingState] = useState(() => getEvent(roomId)?.sharing !== false);
+  const setSharing = (on: boolean) => {
+    setSharingState(on);
+    touchEvent(roomId, { sharing: on });
+  };
   const [showInvite, setShowInvite] = useState(() => (history.state as { host?: boolean } | null)?.host === true);
   const [showLegend, setShowLegend] = useState(false);
   const [start, setStart] = useState(savedStart);
@@ -228,7 +262,7 @@ function RoomPage({ roomId, onExit }: { roomId: string; onExit: () => void }) {
         if (r.status === 404) forgetEvent(roomId);
         else if (r.ok) void r.json().then((b: { name?: string }) => setEventTitle(b.name ?? ''), () => {});
       },
-      () => setExists(false),
+      () => setExists(true), // cannot reach the server right now: do not call the event gone, the socket will tell us
     );
   }, [roomId]);
 
@@ -238,15 +272,19 @@ function RoomPage({ roomId, onExit }: { roomId: string; onExit: () => void }) {
   useKeepAwake(live && sharing && awake);
 
   // Push my position (and sharing state) to the room.
+  // Tell the room whether I am sharing (also after every reconnect), before any position goes out.
+  useEffect(() => {
+    if (live) room.send({ t: 'sharing', on: sharing });
+  }, [live, sharing, room.send]);
   useEffect(() => {
     if (live && sharing && geo.fix) room.send({ t: 'pos', ...geo.fix });
   }, [live, sharing, geo.fix, room.send]);
-  useEffect(() => {
-    if (live && !sharing) room.send({ t: 'sharing', on: false });
-  }, [live, sharing, room.send]);
 
   useEffect(() => {
-    if (live) touchEvent(roomId, {});
+    if (!live) return;
+    touchEvent(roomId, {});
+    // The host flag only exists to skip the form once. Drop it, so Back after leaving cannot rejoin silently.
+    if ((history.state as { host?: boolean } | null)?.host) history.replaceState({ ...(history.state as object), host: false }, '');
   }, [live, roomId]);
 
   // Joined without the form (host, or resumed): make sure the event is remembered on this device.
@@ -258,8 +296,8 @@ function RoomPage({ roomId, onExit }: { roomId: string; onExit: () => void }) {
   useEffect(() => {
     if (!live || notifyPermission() !== 'default') return;
     const ask = () => void enableNotifications().then(setNotifOn);
-    addEventListener('pointerdown', ask, { once: true });
-    return () => removeEventListener('pointerdown', ask);
+    addEventListener('pointerup', ask, { once: true });
+    return () => removeEventListener('pointerup', ask);
   }, [live]);
 
   const players = useMemo(() => Object.values(room.players), [room.players]);
@@ -267,6 +305,19 @@ function RoomPage({ roomId, onExit }: { roomId: string; onExit: () => void }) {
   const now = useNow();
   const meP = room.me ? room.players[room.me] : undefined;
   const mePos = meP?.pos ?? null;
+
+  // Test mission: each step ticks itself off when we see it happen (ignored until the mission is started).
+  const resumedAtMount = useRef(Boolean(getEvent(roomId)?.profile)); // was already in this event on this device
+  useEffect(() => {
+    if (meP?.mood) quest.done('mood');
+  }, [meP?.mood]);
+  useEffect(() => {
+    if (room.me && plans.some((p) => p.by === room.me)) quest.done('flag');
+    if (room.me && plans.some((p) => p.by !== room.me && p.joined.includes(room.me!))) quest.done('imin');
+  }, [plans, room.me]);
+  useEffect(() => {
+    if (live && resumedAtMount.current) quest.done('reopen');
+  }, [live]);
 
   // --- toasts and thought bubbles ------------------------------------------------
   const pushToast = useCallback((t: Omit<ToastItem, 'id' | 'until'>, ms = 6_000) => {
@@ -378,8 +429,15 @@ function RoomPage({ roomId, onExit }: { roomId: string; onExit: () => void }) {
   };
   const leaveTap = () => {
     if (leaveArmed) {
+      // Leaving needs the server to hear it, or your pin and flags would stay behind for hours.
+      if (!room.leave()) {
+        pushToast({ kind: 'info', emoji: '📶', text: 'You are offline right now. Reconnect, then tap Leave again so you are really removed.' });
+        setLeaveArmed(false);
+        return;
+      }
+      quest.done('leave');
       void clearNotifications();
-      return room.leave();
+      return;
     }
     setLeaveArmed(true);
     setTimeout(() => setLeaveArmed(false), 3_000);
@@ -387,7 +445,7 @@ function RoomPage({ roomId, onExit }: { roomId: string; onExit: () => void }) {
 
   /** One tap: remember the event, ask for permissions, ask for location, show the map. */
   const join = async (p: Profile) => {
-    localStorage.setItem(PROFILE_KEY, JSON.stringify(p));
+    store.set(PROFILE_KEY, JSON.stringify(p));
     unlockVoice();
     rememberEvent(roomId, p);
     if (notifyPermission() === 'default') void enableNotifications().then(setNotifOn);
@@ -397,7 +455,7 @@ function RoomPage({ roomId, onExit }: { roomId: string; onExit: () => void }) {
       (await Promise.race([
         requestLocation().then(
           (v) => (saveStart(v), v),
-          () => (saveStart('declined'), 'declined' as const),
+          (e) => (rememberDenial(e), 'declined' as const),
         ),
         new Promise<'declined'>((r) => setTimeout(() => r('declined'), 8_000)), // never keep someone waiting on GPS
       ]));
@@ -490,7 +548,10 @@ function RoomPage({ roomId, onExit }: { roomId: string; onExit: () => void }) {
           selected={selectedPlan}
           onNew={startPlan}
           onJoin={(id) => { room.send({ t: 'plan_join', id }); setSelectedPlan(id); }}
-          onLeave={(id) => room.send({ t: 'plan_leave', id })}
+          onLeave={(id) => {
+            room.send({ t: 'plan_leave', id });
+            setSelectedPlan((cur) => (cur === id ? null : cur)); // no longer interested: no preview trail either
+          }}
           onShow={(id) => { showPlan(id); setPanel(null); }}
           onPing={(id) => room.send({ t: 'plan_ping', id })}
           onCancel={(id) => room.send({ t: 'plan_cancel', id })}
@@ -509,12 +570,16 @@ function RoomPage({ roomId, onExit }: { roomId: string; onExit: () => void }) {
           awakeSupported={wakeLockSupported()}
           onAwake={(on) => { setKeepAwake(on); setAwake(on); }}
           onLegend={() => { setShowLegend(true); setPanel(null); }}
+          onQuest={() => { quest.start(); setPanel('quest'); }}
           onClose={() => setPanel(null)}
         />
+      ) : panel === 'quest' && quest.state ? (
+        <QuestPanel state={quest.state} onClose={() => setPanel(null)} onRestart={quest.start} />
       ) : panel === 'talk' ? (
         <TalkSheet
           onSend={(b, mood) => {
             room.send({ t: 'bubble', emoji: b.emoji, text: b.text });
+            quest.done('talk');
             if (mood) room.send({ t: 'mood', mood: mood as MoodId, note: '' });
             setPanel(null);
           }}
@@ -522,6 +587,8 @@ function RoomPage({ roomId, onExit }: { roomId: string; onExit: () => void }) {
           onClose={() => setPanel(null)}
         />
       ) : (
+        <>
+        {quest.state?.started && <QuestChip state={quest.state} onClick={() => setPanel('quest')} />}
         <section className="hud-bottom">
           {namesOpen && (
             <ul className="players">
@@ -546,7 +613,7 @@ function RoomPage({ roomId, onExit }: { roomId: string; onExit: () => void }) {
             <button type="button" className="tool" data-testid="btn-names" aria-label="Names" aria-pressed={namesOpen} onClick={() => setNamesOpen((v) => !v)}>
               <span className="tool-icon">👥</span><span className="tool-label">Names</span>
             </button>
-            <button type="button" className="tool" data-testid="btn-share" aria-label={sharing ? 'Pause sharing' : 'Share my location'} aria-pressed={sharing} onClick={() => setSharing((v) => !v)}>
+            <button type="button" className="tool" data-testid="btn-share" aria-label={sharing ? 'Pause sharing' : 'Share my location'} onClick={() => setSharing(!sharing)}>
               <span className="tool-icon">{sharing ? '⏸' : '▶'}</span><span className="tool-label">{sharing ? 'Pause' : 'Share'}</span>
             </button>
             <button type="button" className="tool tool-danger" data-testid="btn-leave" aria-label={leaveArmed ? 'Tap again to leave' : 'Leave'} onClick={leaveTap}>
@@ -554,6 +621,7 @@ function RoomPage({ roomId, onExit }: { roomId: string; onExit: () => void }) {
             </button>
           </div>
         </section>
+        </>
       )}
 
       {showInvite && <Invite roomId={roomId} onClose={() => setShowInvite(false)} />}
@@ -651,7 +719,7 @@ function JoinScreen({ eventName, onJoin }: { eventName: string; onJoin: (p: Prof
           </div>
         </details>
         <button className="btn btn-big" disabled={!ok}>{busy ? 'Joining…' : '📍 Join & share my location'}</button>
-        <p className="fineprint">Only people in this event see where you are, and only while the app is open. Leave any time and you are erased from it.</p>
+        <p className="fineprint">Only people in this event see where you are, and only while the app is open. Close the app and your location is forgotten after 5 minutes. Leave and you are erased.</p>
       </form>
     </div>
   );

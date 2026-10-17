@@ -1,15 +1,17 @@
 // Spoken announcements via the browser's built-in speech synthesis. No network, nothing stored.
 // Browsers only let a page speak after the user has tapped something, so call unlockVoice()
 // from a tap handler (joining the room is the natural place).
+import { store } from './safeStorage.ts';
+
 const KEY = 'gms-voice';
 
 export const voiceSupported = () => typeof window !== 'undefined' && 'speechSynthesis' in window;
 
 /** Off by default: pings arrive as a toast and a thought bubble, and speaking is opt-in. */
-export const voiceOn = () => voiceSupported() && localStorage.getItem(KEY) === 'on';
+export const voiceOn = () => voiceSupported() && store.get(KEY) === 'on';
 
 export function setVoiceOn(on: boolean) {
-  localStorage.setItem(KEY, on ? 'on' : 'off');
+  store.set(KEY, on ? 'on' : 'off');
   if (!on && voiceSupported()) speechSynthesis.cancel();
 }
 

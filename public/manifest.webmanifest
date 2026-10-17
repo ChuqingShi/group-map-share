@@ -2,6 +2,7 @@
   "name": "Group Map Share",
   "short_name": "Group Map",
   "description": "See where your crew is, live. No app, no account.",
+  "id": "/",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

@@ -59,6 +59,7 @@ export function treasureTrails(
   };
 
   for (const plan of plans) {
+    if (!Number.isFinite(plan.lat) || !Number.isFinite(plan.lng)) continue; // a broken flag must not poison the trail layer
     const done = new Set<string>();
     for (const id of plan.joined) {
       if (done.has(id)) continue;

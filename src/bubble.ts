@@ -39,7 +39,8 @@ function clean(raw: string): string {
     .replace(/[\uD800-\uDFFF]/gu, ' ') // lone surrogates (in unicode mode this only matches unpaired ones)
     .normalize('NFC')
     .replace(/[\u2018\u2019\u201B\u02BC`\u00B4]/g, "'") // curly apostrophes from phone keyboards
-    .replace(/[\u200B-\u200F\u2060\uFEFF\uFE0F]/g, '') // zero-width and joiner characters
+    .replace(/[\u200B-\u200F\u202A-\u202E\u2060\u2066-\u2069\uFEFF\uFE0F]/g, '') // zero-width, joiner and bidi control characters
+    .replace(/\b(st|ave|dr|blvd|rd|mt|ft)\.(?=\s)/giu, '$1') // "St. Marks" is one name, not a sentence ending
     .replace(/[\p{Extended_Pictographic}\p{Emoji_Modifier}\p{Regional_Indicator}]/gu, ' ') // emoji say nothing here
     .replace(/[\u0000-\u001F\u007F-\u009F]/g, ' ')
     .replace(/\s+/g, ' ')
@@ -48,6 +49,9 @@ function clean(raw: string): string {
   if (/\p{Lu}/u.test(s) && !/\p{Ll}/u.test(s)) s = s.toLowerCase();
   return s;
 }
+
+/** "not hungry", "never tired", "isn't sleepy": a feeling the person said they do NOT have. */
+const NEGATED_FEELING = /(?:\bnot\b|\bnever\b|n't\b|\bno\b)\s+(?:\p{L}+\s+){0,2}(?:hungry|starving|famished|tired|exhausted|sleepy)/giu;
 
 const trimTail = (s: string) => s.replace(/[\s.,;:!?…"'“”()\-–—]+$/u, '');
 
@@ -171,8 +175,8 @@ const RULES: [RegExp, (text: string) => Summary][] = [
   [word('lunch|dinner|breakfast|brunch|eat|eating|food|hungry|starving|famished|snack|pizza|burger|tacos?|sushi|restaurant|feed'), food],
   [word('coffee|latte|espresso|cafe|café'), coffee],
   [word('drinks?|beer|cocktails?|bar|wine|happy hour|pub'), drinks],
-  [word('tired|exhausted|sleepy|need a break|need to rest|worn out|beat'), tired],
-  [word('wait|slow down|hold on|hang on|catch up'), () => ({ emoji: '✋', text: 'Hold up, wait for me!' })],
+  [word("tired|exhausted|sleepy|need a break|need to rest|worn out|i'm beat|im beat|i am beat|so beat|dead beat"), tired],
+  [word('wait up|wait for (?:me|us)|wait a (?:sec|second|minute|moment)|slow down|hold on|hang on|catch up'), () => ({ emoji: '✋', text: 'Hold up, wait for me!' })],
   [word('meet|regroup|gather|over here|come here|come over|this way|follow me|where are you|come to me'), regroup],
   [word('leaving|heading out|going home|head home|taking off|on my way'), () => ({ emoji: '🚶', text: 'Heading out' })],
   [word('bathroom|restroom|toilet'), () => ({ emoji: '🚻', text: 'Bathroom break' })],
@@ -182,7 +186,9 @@ const RULES: [RegExp, (text: string) => Summary][] = [
 export function summarize(transcript: string): Summary {
   const text = clean(String(transcript ?? ''));
   if (!text) return { emoji: THOUGHT, text: '' };
-  const rule = RULES.find(([re]) => re.test(text));
-  const s = rule ? rule[1](text) : echo(text);
+  // A feeling they said they do NOT have must not become a mood: match on the text without it.
+  const probe = text.replace(NEGATED_FEELING, ' ').replace(/\s+/g, ' ').trim();
+  const rule = RULES.find(([re]) => re.test(probe));
+  const s = rule ? rule[1](probe) : echo(text);
   return { ...s, text: fit(s.text) };
 }

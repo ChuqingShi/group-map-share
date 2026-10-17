@@ -28,7 +28,8 @@ KEY="$(cat "$KEYFILE")"
 
 npm run build >/dev/null
 stop_server
-NODE_ENV=production GMS_PORT="$PORT" GMS_HOST_KEY="$KEY" nohup node server/index.ts >"$LOG" 2>&1 &
+BUILD="$(git rev-parse --short HEAD 2>/dev/null || date +%s)" # new build id means testers see the test mission again
+GMS_BUILD="$BUILD" NODE_ENV=production GMS_PORT="$PORT" GMS_HOST_KEY="$KEY" nohup node server/index.ts >"$LOG" 2>&1 &
 sleep 1.5
 curl -fsS "http://127.0.0.1:$PORT/api/health" >/dev/null || { echo "Server did not start. See $LOG"; exit 1; }
 

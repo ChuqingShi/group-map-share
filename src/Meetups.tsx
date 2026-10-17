@@ -141,7 +141,7 @@ export function PlansPanel({ plans, players, me, mePos, selected, onNew, onJoin,
 
 // --- settings ---------------------------------------------------------------------
 
-export function SettingsSheet({ notif, onNotif, awake, awakeSupported, onAwake, voice, onVoice, onLegend, onClose }: {
+export function SettingsSheet({ notif, onNotif, awake, awakeSupported, onAwake, voice, onVoice, onLegend, onQuest, onClose }: {
   notif: 'on' | 'off' | 'blocked' | 'unsupported';
   onNotif: (on: boolean) => void;
   awake: boolean;
@@ -150,6 +150,7 @@ export function SettingsSheet({ notif, onNotif, awake, awakeSupported, onAwake, 
   voice: boolean;
   onVoice: (on: boolean) => void;
   onLegend: () => void;
+  onQuest: () => void;
   onClose: () => void;
 }) {
   return (
@@ -174,6 +175,7 @@ export function SettingsSheet({ notif, onNotif, awake, awakeSupported, onAwake, 
         <span>🔊 Speak pings out loud <em>(off keeps it to toasts and bubbles)</em></span>
       </label>
       <button type="button" className="btn btn-ghost btn-big" data-testid="btn-legend" onClick={onLegend}>🗺️ Show the map legend</button>
+      <button type="button" className="btn btn-ghost btn-big quest-replay" data-testid="btn-quest-replay" onClick={onQuest}>🧪 Replay the test mission</button>
       <p className="fineprint">Alerts and location only work while the app is open. Close it and your pin greys out, and your location is forgotten after 5 minutes. Pause sharing any time from the toolbar.</p>
     </Panel>
   );
@@ -276,6 +278,7 @@ export function TalkSheet({ onSend, onPlan, onClose }: {
         {speech.listening ? '🎙 Listening… tap to stop' : '🎙 Tap and talk'}
       </button>
       {speech.error && <p className="error">{errorText[speech.error]}</p>}
+      <p className="fineprint">Voice typing uses your browser's speech service (Chrome may send the audio to Google). Typing below stays on your phone.</p>
       <label className="field">
         <span>{speech.listening && speech.interim ? 'Hearing…' : 'Or type it'}</span>
         <input data-testid="talk-input" value={speech.listening && speech.interim ? speech.interim : text} maxLength={140} enterKeyHint="send" autoComplete="off" placeholder="e.g. let's go eat at Joe's Tacos" onChange={(e) => setText(e.target.value)} />

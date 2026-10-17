@@ -119,7 +119,7 @@ export function useRoom(roomId: string, profile: Profile | null) {
           case 'error':
             if (msg.code === 'no_room' || msg.code === 'room_full') {
               stoppedRef.current = true;
-              forgetEvent(roomId); // the event is gone or closed to us: stop remembering it
+              if (msg.code === 'no_room') forgetEvent(roomId); // the event is gone: stop remembering it (a full room still exists)
               setStatus(msg.code);
             } else {
               setNotice(NOTICE[msg.code] ?? null);
@@ -150,7 +150,9 @@ export function useRoom(roomId: string, profile: Profile | null) {
     if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
   }, []);
 
-  const leave = useCallback(() => {
+  /** Returns false (and changes nothing) when we are not connected, because then the server would never hear it. */
+  const leave = useCallback((): boolean => {
+    if (wsRef.current?.readyState !== WebSocket.OPEN) return false;
     stoppedRef.current = true;
     send({ t: 'leave' });
     forgetEvent(roomId); // leaving erases the event here; the server drops our pin and flags
@@ -159,6 +161,7 @@ export function useRoom(roomId: string, profile: Profile | null) {
     setPlans({});
     meRef.current = null;
     setMe(null);
+    return true;
   }, [roomId, send]);
 
   const clearNotice = useCallback(() => setNotice(null), []);

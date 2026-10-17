@@ -9,6 +9,8 @@ export interface SavedEvent {
   /** Session token the server gave us, so reconnecting resumes the same player (and their flags). */
   token: string | null;
   profile: Profile;
+  /** False when they paused sharing: reopening the app must not quietly switch it back on. */
+  sharing?: boolean;
   joinedAt: number;
   lastSeen: number;
 }
@@ -41,7 +43,7 @@ export function loadEvents(s: Store | null = defaultStore()): SavedEvent[] {
     if (!Array.isArray(raw)) return [];
     return raw
       .filter(isEvent)
-      .map((e) => ({ ...e, name: typeof e.name === 'string' ? e.name : '', token: typeof e.token === 'string' ? e.token : null, joinedAt: Number(e.joinedAt) || e.lastSeen }))
+      .map((e) => ({ ...e, name: typeof e.name === 'string' ? e.name : '', token: typeof e.token === 'string' ? e.token : null, sharing: e.sharing === false ? false : undefined, joinedAt: Number(e.joinedAt) || e.lastSeen }))
       .sort((a, b) => b.lastSeen - a.lastSeen);
   } catch {
     return [];
@@ -65,7 +67,7 @@ export function saveEvent(ev: SavedEvent, s: Store | null = defaultStore()) {
 /** Update a remembered event in place (no-op if we are not remembering it). */
 export function touchEvent(
   id: string,
-  patch: Partial<Pick<SavedEvent, 'name' | 'token' | 'profile'>> = {},
+  patch: Partial<Pick<SavedEvent, 'name' | 'token' | 'profile' | 'sharing'>> = {},
   s: Store | null = defaultStore(),
   now = Date.now(),
 ) {
