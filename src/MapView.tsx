@@ -4,6 +4,8 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import type { Player } from '../shared/protocol.ts';
 import { gameStyle, installPatterns } from './mapStyle.ts';
+import { fallbackView } from './startLocation.ts';
+import type { LatLng } from './geo.ts';
 
 export interface MapHandle {
   fitAll(): void;
@@ -13,6 +15,8 @@ export interface MapHandle {
 interface Props {
   players: Player[];
   me: string | null;
+  /** Where to open the map (the user's location); null falls back to a time-zone-based world view. */
+  start: LatLng | null;
   ref?: Ref<MapHandle>;
 }
 
@@ -51,7 +55,7 @@ function renderPin(el: HTMLDivElement, p: Player, isMe: boolean) {
   el.style.zIndex = isMe ? '2' : '1';
 }
 
-export default function MapView({ players, me, ref }: Props) {
+export default function MapView({ players, me, start, ref }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const tracked = useRef(new Map<string, Tracked>());
@@ -63,9 +67,7 @@ export default function MapView({ players, me, ref }: Props) {
     const map = new maplibregl.Map({
       container: containerRef.current!,
       style: gameStyle(),
-      center: [0, 20],
-      zoom: 1.5,
-      pitch: 0,
+      ...(start ? { center: [start.lng, start.lat] as [number, number], zoom: 16, pitch: 45 } : { ...fallbackView(), pitch: 0 }),
       maxPitch: 60,
       attributionControl: { compact: true },
     });
@@ -126,15 +128,15 @@ export default function MapView({ players, me, ref }: Props) {
       }
     }
 
-    // First time anybody (preferably me) has a position, swoop in.
+    // Swoop to my first live fix. Without a start location, settle for whoever shows up first.
     if (!centred.current) {
-      const target = players.find((p) => p.id === me && p.pos) ?? players.find((p) => p.pos);
+      const target = players.find((p) => p.id === me && p.pos) ?? (start ? undefined : players.find((p) => p.pos));
       if (target?.pos) {
         centred.current = true;
         map.flyTo({ center: [target.pos.lng, target.pos.lat], zoom: 16.5, pitch: 45, duration: 2200 });
       }
     }
-  }, [players, me]);
+  }, [players, me, start]);
 
   useImperativeHandle(ref, () => ({
     fitAll() {

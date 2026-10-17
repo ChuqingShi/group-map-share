@@ -4,6 +4,8 @@ Live location sharing for a group, with no accounts, no phone numbers and no app
 
 1. Someone taps **Create a room** and gets a QR code (and a share link).
 2. Everyone who scans it lands in the web app, types a name and picks a character.
+   Before any map is shown, the app asks for location so the map opens where you are.
+   If you decline, it opens on your part of the world (guessed from your time zone).
 3. Everyone appears as a bouncing game-style pin on a shared map, live.
 
 The map is a custom "game board" style over free OpenStreetMap vector tiles. Water, sand/beach,

@@ -10,7 +10,7 @@ export interface Fix {
 
 export type GeoError = 'denied' | 'unavailable' | 'insecure' | 'unsupported' | null;
 
-function simStart(): Fix | null {
+export function simStart(): Fix | null {
   const sim = new URLSearchParams(location.search).get('sim');
   if (sim === null) return null;
   const [lat, lng] = sim.split(',').map(Number);

@@ -31,6 +31,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .btn-small { padding: 6px 12px; font-size: 0.95rem; }
 .btn-ghost { background: #fff; }
 .btn-danger { background: var(--accent); color: #fff; }
+.btn-link { display: block; margin: 12px auto 0; border: 0; background: none; font-weight: 700; text-decoration: underline; opacity: 0.75; }
 .btn-icon {
   width: 42px; height: 42px; border-radius: 12px;
   border: 3px solid var(--ink); background: #fff; box-shadow: var(--pop); font-size: 1.2rem;
