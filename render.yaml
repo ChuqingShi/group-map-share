@@ -1,0 +1,13 @@
+# Render Blueprint: one Node web service serving the built app + WebSockets.
+# Rooms live in memory, so keep a single instance (no scaling out).
+services:
+  - type: web
+    name: group-map-share
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 24.22.0 # keep in step with .node-version and package.json engines

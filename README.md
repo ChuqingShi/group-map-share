@@ -16,7 +16,7 @@ small pattern (waves, sand dots, grass tufts, trees), plus hillshading. Tap 🗺
 
 ## Run it
 
-Needs Node 22.18+ (it runs the TypeScript server directly with Node's type stripping).
+Needs Node 24 (it runs the TypeScript server directly with Node's type stripping).
 
 ```bash
 npm install
@@ -36,6 +36,19 @@ npm start          # http://localhost:8787
 | `GMS_HOST`  | `0.0.0.0` | Interface to listen on          |
 
 These are deliberately not `PORT`/`HOST`, which dev machines often already use for something else.
+`PORT` is only honoured on Render (see below).
+
+## Deploy on Render
+
+`render.yaml` is a Render Blueprint for a single free-plan Node web service:
+build `npm ci && npm run build`, start `npm start`, health check `/api/health`, Node pinned via `NODE_VERSION`.
+
+- When `RENDER` is set (Render always sets it), the server listens on Render's `PORT` and trusts
+  `X-Forwarded-For` for the room-creation rate limit. Locally, `PORT` is ignored.
+- The client builds its WebSocket URL (`wss://` on https) and the QR/share link from the page's own origin,
+  so they work on the public `onrender.com` URL with no configuration.
+- Rooms live in memory: keep one instance. On the free plan the service sleeps when idle, and a
+  restart or redeploy ends all rooms (people just create a new one).
 
 ### Testing without walking around
 

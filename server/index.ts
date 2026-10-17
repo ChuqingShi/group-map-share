@@ -5,13 +5,11 @@ import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { RoomRegistry, type Conn, type Room } from './rooms.ts';
+import { clientIp, serverConfig } from './config.ts';
 import type { ClientMsg } from '../shared/protocol.ts';
 
-// Own variable rather than PORT, which dev machines often already use for something else.
-const PORT = Number(process.env.GMS_PORT ?? 8787);
-const HOST = process.env.GMS_HOST ?? '0.0.0.0';
+const { port: PORT, host: HOST, serveStatic: SERVE_STATIC, behindProxy } = serverConfig(process.env);
 const STATIC_DIR = resolve(import.meta.dirname, '..', 'dist');
-const SERVE_STATIC = process.env.NODE_ENV === 'production';
 
 export const registry = new RoomRegistry();
 setInterval(() => registry.sweep(), 30_000).unref();
@@ -71,7 +69,7 @@ async function serveStatic(req: IncomingMessage, res: ServerResponse) {
 const server = createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', 'http://x');
   if (url.pathname === '/api/rooms' && req.method === 'POST') {
-    const ip = req.socket.remoteAddress ?? '?';
+    const ip = clientIp(req, behindProxy);
     if (!allowCreate(ip)) return json(res, 429, { error: 'too many rooms, try again later' });
     const room = registry.create();
     return room ? json(res, 201, { id: room.id }) : json(res, 503, { error: 'server full' });
