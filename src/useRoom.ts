@@ -11,6 +11,8 @@ export interface Profile {
   color: string;
   /** Ticked "I'm an organizer" for this event. */
   organizer?: boolean;
+  /** The contact line on my card, remembered on this device so the next event starts with it. */
+  contact?: string;
 }
 
 import { forgetEvent, getEvent, touchEvent } from './events.ts';

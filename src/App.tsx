@@ -10,7 +10,8 @@ import { useGeolocation, type GeoError } from './useGeolocation.ts';
 import { requestLocation, saveStart, savedStart } from './startLocation.ts';
 import { store } from './safeStorage.ts';
 import { CrewStrip, Toasts, type ToastItem } from './Crew.tsx';
-import { DropBanner, MoodSheet, PlanForm, PlansPanel, SettingsSheet, TalkSheet, type PlanInput, type TalkPlant } from './Meetups.tsx';
+import { DropBanner, MoodSheet, PlanForm, PlansPanel, SettingsSheet, SuggestSheet, TalkSheet, type PlanInput, type TalkPlant } from './Meetups.tsx';
+import { PersonCard } from './PersonCard.tsx';
 import { FlagButton } from './FlagDrag.tsx';
 import type { Feeling } from './bubble.ts';
 import { QuestChip, QuestIntro, QuestPanel, useQuest, type QuestApi } from './Quest.tsx';
@@ -215,7 +216,7 @@ const loadProfile = (): Profile => {
   };
 };
 
-type Panel = null | 'mood' | 'plans' | 'talk' | 'settings' | 'quest';
+type Panel = null | 'mood' | 'plans' | 'talk' | 'settings' | 'quest' | 'card' | 'suggest';
 type PlanStep = null | 'drop' | 'form';
 interface Bubble { emoji: string; text: string; at: number }
 
@@ -249,7 +250,8 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [bubbles, setBubbles] = useState<Record<string, Bubble>>({});
   const [toasts, setToasts] = useState<ToastItem[]>([]);
-  const [crewTip, setCrewTip] = useState<{ id: string; until: number } | null>(null);
+  const [cardId, setCardId] = useState<string | null>(null);
+  const [suggestId, setSuggestId] = useState<string | null>(null);
   const [voice, setVoice] = useState(voiceOn);
   const [leaveArmed, setLeaveArmed] = useState(false);
   const [notifOn, setNotifOn] = useState(notifyEnabled);
@@ -345,7 +347,6 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
         const keep = ts.filter((x) => x.until > t);
         return keep.length === ts.length ? ts : keep;
       });
-      setCrewTip((c) => (c && c.until <= t ? null : c));
     }, 1000);
     return () => clearInterval(id);
   }, []);
@@ -409,6 +410,31 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
     setSelectedPlan((id) => (id && !room.plans[id] ? null : id));
   }, [room.plans, live, room.me]);
 
+  // Somebody suggested somewhere else for a plan I made: say so, and offer to plan it.
+  const seenIdeas = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    if (!live) return;
+    const all = Object.values(room.plans).flatMap((p) => p.suggestions.map((sg) => ({ plan: p, sg })));
+    if (seenIdeas.current === null) {
+      seenIdeas.current = new Set(all.map((x) => x.sg.id)); // ideas that were already there when I arrived are not news
+      return;
+    }
+    for (const { plan, sg } of all) {
+      if (seenIdeas.current.has(sg.id)) continue;
+      seenIdeas.current.add(sg.id);
+      if (plan.by !== room.me || sg.by === room.me) continue;
+      pushToast(
+        {
+          kind: 'info',
+          emoji: '💡',
+          text: `${sg.byName} suggests ${sg.place}${sg.note ? ` (${sg.note})` : ''} instead of ${plan.place}.`,
+          action: canPlant ? { label: 'Plan it', run: () => startPlan({ kind: plan.kind, place: sg.place }) } : undefined,
+        },
+        12_000,
+      );
+    }
+  }, [room.plans, live, room.me]);
+
   // --- actions ---------------------------------------------------------------------
   const isJoined = (planId: string) => !!room.me && !!room.plans[planId]?.joined.includes(room.me);
   const showPlan = (id: string) => {
@@ -457,10 +483,28 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
     room.send({ t: 'plan', kind: input.kind, place: input.place, note: input.note, lat: draft.lat, lng: draft.lng, ping: input.ping });
     endPlan();
   };
-  const pickCrew = (id: string) => {
-    mapRef.current?.focus(id);
-    setCrewTip({ id, until: Date.now() + 3_500 });
+  /** Tap a picture, a name or a pin: that person's card. */
+  const openCard = (id: string) => {
+    setCardId(id);
+    setPanel('card');
   };
+  const declinePlan = (id: string) => {
+    room.send({ t: 'plan_decline', id });
+    setSelectedPlan((cur) => (cur === id ? null : cur));
+  };
+  /** My contact line: tell the room, and remember it on this device (and for this event's reconnects). */
+  const saveContact = (text: string) => {
+    room.send({ t: 'contact', text });
+    const clean = text.trim();
+    setProfile((p) => {
+      if (!p) return p;
+      const next = { ...p, contact: clean };
+      touchEvent(roomId, { profile: next });
+      return next;
+    });
+    store.set(PROFILE_KEY, JSON.stringify({ ...loadProfile(), contact: clean }));
+  };
+  const cardPlayer = cardId ? room.players[cardId] : undefined;
   const leaveTap = () => {
     if (leaveArmed) {
       // Leaving needs the server to hear it, or your pin and flags would stay behind for hours.
@@ -504,9 +548,6 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
   if (room.status === 'room_full') return <Message title="Room is full" body="This room has reached its player limit." onExit={onExit} />;
   if (!profile) return exists ? <JoinScreen eventName={eventTitle} onJoin={join} /> : null;
 
-  const tipP = crewTip ? room.players[crewTip.id] : undefined;
-  const tipAway = tipP?.pos && mePos && tipP.id !== room.me ? distanceM(mePos, tipP.pos) : null;
-
   return (
     <div className={`room ${namesOpen ? 'names-open' : ''}`}>
       <MapView
@@ -520,6 +561,7 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
         dropping={planStep === 'drop'}
         onDrop={(p) => { setDraft(p); setPlanStep('form'); }}
         onPlanClick={(id) => { setSelectedPlan(id); setPanel('plans'); }}
+        onPinClick={openCard}
         bubbles={bubbles}
       />
 
@@ -537,14 +579,7 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
         </div>
       </header>
 
-      {profile && <CrewStrip players={players} me={room.me} onPick={pickCrew} />}
-      {tipP && (
-        <div className="crew-tip" role="status">
-          <b>{tipP.name}{tipP.id === room.me ? ' (you)' : ''}</b>
-          {tipP.mood && ` · ${moodEmoji(tipP.mood)} ${moodText(tipP.mood)}${tipP.mood.note ? ` ${tipP.mood.note}` : ''}`}
-          {!tipP.online ? ' · offline' : tipAway !== null ? ` · ${formatDistance(tipAway)} away` : ''}
-        </div>
-      )}
+      {profile && <CrewStrip players={players} me={room.me} onPick={openCard} />}
 
       {showLegend && <Legend onClose={() => setShowLegend(false)} />}
 
@@ -555,6 +590,8 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
           isJoined={isJoined}
           onDismiss={dismissToast}
           onJoin={(planId, toastId) => { room.send({ t: 'plan_join', id: planId }); setSelectedPlan(planId); dismissToast(toastId); }}
+          onDecline={(planId, toastId) => { declinePlan(planId); dismissToast(toastId); }}
+          onSuggest={(planId, toastId) => { setSuggestId(planId); setPanel('suggest'); dismissToast(toastId); }}
           onShow={(planId, toastId) => { showPlan(planId); dismissToast(toastId); }}
         />
       </div>
@@ -588,9 +625,38 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
             room.send({ t: 'plan_leave', id });
             setSelectedPlan((cur) => (cur === id ? null : cur)); // no longer interested: no preview trail either
           }}
+          onDecline={declinePlan}
+          onSuggest={(id) => { setSuggestId(id); setPanel('suggest'); }}
           onShow={(id) => { showPlan(id); setPanel(null); }}
           onPing={(id) => room.send({ t: 'plan_ping', id })}
           onCancel={(id) => room.send({ t: 'plan_cancel', id })}
+          onClose={() => setPanel(null)}
+        />
+      ) : panel === 'card' && cardPlayer ? (
+        <PersonCard
+          player={cardPlayer}
+          isMe={cardPlayer.id === room.me}
+          plans={plans}
+          mePlayerId={room.me}
+          mePos={mePos}
+          now={now}
+          clockOffset={room.clockOffset}
+          onClose={() => setPanel(null)}
+          onShowOnMap={() => { mapRef.current?.focus(cardPlayer.id); setPanel(null); }}
+          onShowPlan={(id) => { showPlan(id); setPanel(null); }}
+          onJoin={(id) => { room.send({ t: 'plan_join', id }); setSelectedPlan(id); }}
+          onLeave={(id) => room.send({ t: 'plan_leave', id })}
+          onSaveContact={saveContact}
+        />
+      ) : panel === 'suggest' && suggestId && room.plans[suggestId] ? (
+        <SuggestSheet
+          plan={room.plans[suggestId]}
+          onSend={(place, note) => {
+            room.send({ t: 'plan_suggest', id: suggestId, place, note });
+            setSelectedPlan((cur) => (cur === suggestId ? null : cur));
+            pushToast({ kind: 'info', emoji: '💡', text: `Idea sent: ${place}.` });
+            setPanel(null);
+          }}
           onClose={() => setPanel(null)}
         />
       ) : panel === 'settings' ? (
@@ -645,7 +711,7 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
                 .slice()
                 .sort((a, b) => (a.id === room.me ? -1 : b.id === room.me ? 1 : a.name.localeCompare(b.name)))
                 .map((p) => (
-                  <PlayerRow key={p.id} p={p} isMe={p.id === room.me} me={meP} now={now} clockOffset={room.clockOffset} onClick={() => mapRef.current?.focus(p.id)} />
+                  <PlayerRow key={p.id} p={p} isMe={p.id === room.me} me={meP} now={now} clockOffset={room.clockOffset} onClick={() => openCard(p.id)} />
                 ))}
             </ul>
           )}

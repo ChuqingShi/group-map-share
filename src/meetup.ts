@@ -79,3 +79,18 @@ export function treasureArc(from: LatLng, to: LatLng, steps = 32, bend = 0.18): 
   pts[steps] = [to.lng, to.lat];
   return pts;
 }
+
+/**
+ * A contact line that is just a phone number or an email becomes a tap-to-call or tap-to-email link.
+ * Anything else ("find me by the fountain") stays plain text, so nothing a person types can become a
+ * surprising link: only `tel:` and `mailto:` are ever built, from text that passed a strict check.
+ */
+export function contactLink(text: string): { href: string; label: string } | null {
+  const t = text.trim();
+  if (/^[^\s@<>"'()]+@[^\s@<>"'()]+\.[A-Za-z]{2,}$/.test(t)) return { href: `mailto:${t}`, label: 'Email' };
+  const digits = t.replace(/\D/g, '');
+  if (/^\+?[\d\s().-]{7,20}$/.test(t) && digits.length >= 7 && digits.length <= 15) {
+    return { href: `tel:${t.startsWith('+') ? '+' : ''}${digits}`, label: 'Call' };
+  }
+  return null;
+}

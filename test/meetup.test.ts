@@ -1,11 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { announcement, treasureArc, walkMinutes } from '../src/meetup.ts';
+import { announcement, contactLink, treasureArc, walkMinutes } from '../src/meetup.ts';
 import { distanceM } from '../src/geo.ts';
 import type { Plan } from '../shared/protocol.ts';
 
 const plan = (over: Partial<Plan> = {}): Plan => ({
-  id: 'p1', by: 'a', byName: 'Eric', kind: 'lunch', place: "Joe's Tacos", note: '', lat: 34.01, lng: -118.49, joined: ['a'], createdAt: 0, ...over,
+  id: 'p1', by: 'a', byName: 'Eric', kind: 'lunch', place: "Joe's Tacos", note: '', lat: 34.01, lng: -118.49, joined: ['a'], declined: [], suggestions: [], createdAt: 0, ...over,
 });
 
 test('announcements read like the invitation, with distance and note when known', () => {
@@ -40,4 +40,13 @@ test('treasure arc starts and ends exactly at the endpoints and bows to the left
 test('a trail to somewhere you are already standing is just a short line', () => {
   const p = { lat: 34.0, lng: -118.5 };
   assert.equal(treasureArc(p, { lat: 34.00003, lng: -118.5 }).length, 2);
+});
+
+test('a contact line becomes a link only when it is plainly a phone number or an email', () => {
+  assert.deepEqual(contactLink('ann@example.com'), { href: 'mailto:ann@example.com', label: 'Email' });
+  assert.deepEqual(contactLink('  +1 (310) 555-0100 '), { href: 'tel:+13105550100', label: 'Call' });
+  assert.deepEqual(contactLink('310.555.0100'), { href: 'tel:3105550100', label: 'Call' });
+  for (const text of ['find me by the fountain', 'javascript:alert(1)', 'call me at 5', '123', 'a@b', '<a@b.co>', 'ann@example.com please', 'tel:123456789', 'x'.repeat(30), '', '+', '1234567890123456789012']) {
+    assert.equal(contactLink(text), null, JSON.stringify(text));
+  }
 });

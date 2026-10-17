@@ -41,11 +41,13 @@ export interface ToastItem {
   until: number;
 }
 
-export function Toasts({ items, isJoined, onDismiss, onJoin, onShow }: {
+export function Toasts({ items, isJoined, onDismiss, onJoin, onDecline, onSuggest, onShow }: {
   items: ToastItem[];
   isJoined: (planId: string) => boolean;
   onDismiss: (id: number) => void;
   onJoin: (planId: string, toastId: number) => void;
+  onDecline: (planId: string, toastId: number) => void;
+  onSuggest: (planId: string, toastId: number) => void;
   onShow: (planId: string, toastId: number) => void;
 }) {
   return (
@@ -63,6 +65,8 @@ export function Toasts({ items, isJoined, onDismiss, onJoin, onShow }: {
             {t.kind === 'ping' && t.planId && (
               <span className="toast-actions">
                 {!isJoined(t.planId) && <button type="button" className="btn btn-small" data-testid="btn-toast-join" onClick={() => onJoin(t.planId!, t.id)}>I&apos;m in</button>}
+                <button type="button" className="btn btn-small btn-ghost" data-testid="btn-toast-decline" onClick={() => onDecline(t.planId!, t.id)}>No thanks</button>
+                <button type="button" className="btn btn-small btn-ghost" data-testid="btn-toast-suggest" onClick={() => onSuggest(t.planId!, t.id)}>💡 Suggest</button>
                 <button type="button" className="btn btn-small btn-ghost" data-testid="btn-toast-show" onClick={() => onShow(t.planId!, t.id)}>Show me</button>
               </span>
             )}

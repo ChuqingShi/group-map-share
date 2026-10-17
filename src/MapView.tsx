@@ -75,6 +75,8 @@ interface Props {
   dropping: boolean;
   onDrop(p: LatLng): void;
   onPlanClick(id: string): void;
+  /** Someone tapped a person's pin. */
+  onPinClick(playerId: string): void;
   /** Keyed by player id. */
   bubbles: Record<string, Bubble>;
 }
@@ -476,7 +478,7 @@ function flyToClear(map: maplibregl.Map, lngLat: [number, number]) {
 
 // --- the map -----------------------------------------------------------------
 
-export default function MapView({ players, me, start, ref, plans, selectedPlan, draft, dropping, onDrop, onPlanClick, bubbles }: Props) {
+export default function MapView({ players, me, start, ref, plans, selectedPlan, draft, dropping, onDrop, onPlanClick, onPinClick, bubbles }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const tracked = useRef(new Map<string, Tracked>());
@@ -499,6 +501,8 @@ export default function MapView({ players, me, start, ref, plans, selectedPlan, 
   onDropRef.current = onDrop;
   const onPlanClickRef = useRef(onPlanClick);
   onPlanClickRef.current = onPlanClick;
+  const onPinClickRef = useRef(onPinClick);
+  onPinClickRef.current = onPinClick;
 
   useEffect(() => {
     const map = new maplibregl.Map({
@@ -566,6 +570,11 @@ export default function MapView({ players, me, start, ref, plans, selectedPlan, 
       let t = tracked.current.get(p.id);
       if (!t) {
         const pin = createPin(p.id);
+        const pinOf = p.id;
+        pin.el.addEventListener('click', (e) => {
+          e.stopPropagation(); // a tap on a person is not a tap on the map
+          onPinClickRef.current(pinOf);
+        });
         const marker = new maplibregl.Marker({ element: pin.el, anchor: 'bottom' }).setLngLat(target).addTo(map);
         t = { marker, pin, from: target, to: target, start: 0 };
         tracked.current.set(p.id, t);

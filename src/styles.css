@@ -476,3 +476,27 @@ button, summary, [role='button'], .pin, .xmark, .player {
 .crew-org { position: absolute; left: -8px; top: -8px; width: 22px; height: 22px; border-radius: 50%; background: var(--gold); border: 2px solid var(--ink); display: grid; place-items: center; font-size: 0.7rem; line-height: 1; }
 /* The drag tip sits above the round Talk button's rim, not behind it. */
 .flag-tip { bottom: calc(100% + 50px); }
+
+/* ---------- person card, suggestions ---------- */
+.card-head { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.card-avatar {
+  flex: none; width: 58px; height: 58px; border-radius: 50%; border: 4px solid var(--ink); background: var(--cream);
+  display: grid; place-items: center; font-size: 1.9rem; line-height: 1; box-shadow: 0 0 0 3px var(--c), 3px 5px 0 3px rgba(0, 0, 0, 0.3);
+}
+.card-who { display: grid; min-width: 0; }
+.card-name { font: 900 1.1rem var(--head); letter-spacing: 0.04em; text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card-where { font-size: 0.85rem; font-style: italic; }
+.card-tag { display: inline-block; margin: 0 0 10px; padding: 2px 10px; background: var(--gold); border: 2px solid var(--ink); font: 900 0.7rem var(--head); letter-spacing: 0.12em; text-transform: uppercase; transform: rotate(-2deg); }
+.card-block { display: grid; gap: 4px; margin: 0 0 12px; padding: 8px 10px; border: 3px solid var(--ink); background: var(--cream); }
+.card-label { font: 900 0.68rem var(--head); letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.85; }
+.card-mood { font-weight: 800; font-size: 1.05rem; }
+.card-contact-text { overflow-wrap: anywhere; font-weight: 700; }
+.card-link { color: var(--teal-ink); text-decoration: underline; text-underline-offset: 3px; }
+.card-empty { margin: 0 0 12px; font-style: italic; }
+.card-plans { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.card-plan { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.card-plan-text { flex: 1; min-width: 120px; display: grid; font-size: 0.9rem; }
+.card-plan-actions { display: flex; gap: 6px; }
+.suggestions { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.suggestion { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px; border: 2px dashed var(--ink); background: #fff; font-size: 0.9rem; line-height: 1.3; }
+.toast-actions { flex-wrap: wrap; }

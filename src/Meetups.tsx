@@ -126,7 +126,7 @@ export function MoodSheet({ current, onShare, onClear, onClose }: {
 
 // --- plans --------------------------------------------------------------------
 
-export function PlansPanel({ plans, players, me, mePos, selected, canPlant, onNew, onJoin, onLeave, onShow, onPing, onCancel, onClose }: {
+export function PlansPanel({ plans, players, me, mePos, selected, canPlant, onNew, onJoin, onLeave, onDecline, onSuggest, onShow, onPing, onCancel, onClose }: {
   plans: Plan[];
   players: Player[];
   me: string | null;
@@ -134,9 +134,11 @@ export function PlansPanel({ plans, players, me, mePos, selected, canPlant, onNe
   selected: string | null;
   /** False when the event has an organizer and I am not one. */
   canPlant: boolean;
-  onNew: (seed?: { kind: PlanKind }) => void;
+  onNew: (seed?: { kind: PlanKind; place?: string }) => void;
   onJoin: (id: string) => void;
   onLeave: (id: string) => void;
+  onDecline: (id: string) => void;
+  onSuggest: (id: string) => void;
   onShow: (id: string) => void;
   onPing: (id: string) => void;
   onCancel: (id: string) => void;
@@ -178,6 +180,17 @@ export function PlansPanel({ plans, players, me, mePos, selected, canPlant, onNe
                   {away !== null && ` · ${formatDistance(away)} (${walkPhrase(away)})`}
                 </div>
                 {p.note && <div className="plan-note">“{p.note}”</div>}
+                {p.declined.length > 0 && <div className="plan-meta" data-testid="plan-declined">{p.declined.length} said no thanks{p.declined.includes(me ?? '') ? ' (you)' : ''}</div>}
+                {p.suggestions.length > 0 && (
+                  <ul className="suggestions" aria-label="Other ideas">
+                    {p.suggestions.map((sg) => (
+                      <li key={sg.id} className="suggestion" data-testid="plan-suggestion">
+                        <span>💡 <b>{sg.byName}</b> suggests <b>{sg.place}</b>{sg.note ? ` (${sg.note})` : ''}</span>
+                        {mine && canPlant && <button type="button" className="btn btn-small" data-testid="btn-plan-adopt" onClick={() => onNew({ kind: p.kind, place: sg.place })}>Plan it</button>}
+                      </li>
+                    ))}
+                  </ul>
+                )}
                 <div className="plan-going" aria-label="Who is going">
                   {p.joined.map((id) => {
                     const pl = byId.get(id);
@@ -190,6 +203,8 @@ export function PlansPanel({ plans, players, me, mePos, selected, canPlant, onNe
                   ) : (
                     <button type="button" className="btn btn-small" data-testid="btn-plan-join" onClick={() => onJoin(p.id)}>I&apos;m in</button>
                   )}
+                  {!mine && !p.declined.includes(me ?? '') && <button type="button" className="btn btn-small btn-ghost" data-testid="btn-plan-decline" onClick={() => onDecline(p.id)}>No thanks</button>}
+                  {!mine && <button type="button" className="btn btn-small btn-ghost" data-testid="btn-plan-suggest" onClick={() => onSuggest(p.id)}>💡 Suggest</button>}
                   <button type="button" className="btn btn-small btn-ghost" data-testid="btn-plan-show" onClick={() => onShow(p.id)}>🗺️ Show</button>
                   {mine && <button type="button" className="btn btn-small btn-ghost" data-testid="btn-plan-ping" onClick={() => onPing(p.id)}>🔔 Ping</button>}
                   {mine && (
@@ -203,6 +218,32 @@ export function PlansPanel({ plans, players, me, mePos, selected, canPlant, onNe
           })}
         </ul>
       )}
+    </Panel>
+  );
+}
+
+// --- suggesting somewhere else ---------------------------------------------------
+
+/** "No, but how about...": a different place for the same plan. Open to everyone, organizers or not. */
+export function SuggestSheet({ plan, onSend, onClose }: { plan: Plan; onSend: (place: string, note: string) => void; onClose: () => void }) {
+  const [place, setPlace] = useState('');
+  const [note, setNote] = useState('');
+  const ok = place.trim().length > 0;
+  return (
+    <Panel title="How about…?" testid="suggest-sheet" onClose={onClose}>
+      <p className="suggest">Instead of <b>{plan.place}</b> ({KIND_LABEL[plan.kind]}), where would you rather go? Only the name is needed. This also counts as a no thanks.</p>
+      <label className="field">
+        <span>Somewhere else</span>
+        <input data-testid="suggest-place" autoFocus value={place} maxLength={PLACE_MAX} enterKeyHint="next" autoComplete="off" placeholder="e.g. Blue Bottle" onChange={(e) => setPlace(e.target.value)} />
+      </label>
+      <label className="field">
+        <span>Why (optional)</span>
+        <input data-testid="suggest-note" value={note} maxLength={NOTE_MAX} enterKeyHint="send" autoComplete="off" placeholder="e.g. shorter line" onChange={(e) => setNote(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && ok) onSend(place.trim(), note.trim()); }} />
+      </label>
+      <div className="controls">
+        <button type="button" className="btn" data-testid="btn-suggest-send" disabled={!ok} onClick={() => onSend(place.trim(), note.trim())}>Send idea</button>
+        <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+      </div>
     </Panel>
   );
 }
