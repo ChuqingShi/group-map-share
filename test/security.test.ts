@@ -134,3 +134,48 @@ test('public-facing server: host key gates room creation, headers are set, origi
     if (server.exitCode === null) await once(server, 'exit');
   }
 });
+
+test('a socket on a missing room, or one that never says hello, cannot crash the server or hold a slot', async () => {
+  const port = await freePort();
+  const server = spawn(process.execPath, ['server/index.ts'], {
+    env: { ...process.env, GMS_PORT: String(port), GMS_HOST: '127.0.0.1', GMS_HELLO_TIMEOUT_MS: '300' },
+    stdio: ['ignore', 'ignore', 'pipe'],
+  });
+  let stderr = '';
+  server.stderr?.on('data', (d) => (stderr += d));
+  const base = `http://127.0.0.1:${port}`;
+  const sockets: WebSocket[] = [];
+  try {
+    let up = false;
+    for (let i = 0; i < 50 && !up && server.exitCode === null; i++) {
+      up = await fetch(`${base}/api/health`).then((r) => r.ok, () => false);
+      if (!up) await new Promise((r) => setTimeout(r, 100));
+    }
+    assert.ok(up, `server did not start: ${stderr}`);
+
+    // 45 sockets to a room that does not exist, more than the 30 per address allowed: each must free its slot.
+    for (let i = 0; i < 45; i++) {
+      const ws = new WebSocket(`ws://127.0.0.1:${port}/ws?room=nope`);
+      sockets.push(ws);
+      await new Promise((r) => ws.once('close', r));
+    }
+    // A real room's socket that never says hello is closed by the hello timeout.
+    const { id } = (await (await fetch(`${base}/api/rooms`, { method: 'POST' })).json()) as { id: string };
+    const idle = new WebSocket(`ws://127.0.0.1:${port}/ws?room=${id}`);
+    sockets.push(idle);
+    await once(idle, 'open');
+    const [code] = (await once(idle, 'close')) as [number];
+    assert.equal(code, 4008, 'idle socket dropped by the hello timeout');
+    // Wait past the timeout of the sockets above: a leaked timer on the no-room path used to crash the process here.
+    await new Promise((r) => setTimeout(r, 600));
+    assert.equal(server.exitCode, null, `server died: ${stderr}`);
+    const ok = new WebSocket(`ws://127.0.0.1:${port}/ws?room=${id}`);
+    sockets.push(ok);
+    await once(ok, 'open'); // still accepted, so no slot leaked
+    assert.equal((await fetch(`${base}/api/health`)).status, 200);
+  } finally {
+    for (const ws of sockets) ws.terminate();
+    server.kill();
+    if (server.exitCode === null) await once(server, 'exit');
+  }
+});

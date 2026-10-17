@@ -16,6 +16,8 @@ const HOST_KEY = process.env.GMS_HOST_KEY || undefined;
 const EXTRA_ORIGINS = (process.env.GMS_ALLOWED_ORIGINS ?? '').split(',').map((o) => o.trim()).filter(Boolean);
 const socketsPerIp = new ConnectionLimiter(30);
 const MAX_SOCKETS = 2_000;
+/** How long a socket may sit without joining. Overridable so tests do not wait ten seconds. */
+const HELLO_TIMEOUT_MS = Number(process.env.GMS_HELLO_TIMEOUT_MS) || 10_000;
 
 export const registry = new RoomRegistry();
 setInterval(() => registry.sweep(), 30_000).unref();
@@ -154,12 +156,6 @@ const wss = new WebSocketServer({
 wss.on('connection', (ws: WebSocket, req) => {
   const ip = callerIp(req, behindProxy);
   if (!socketsPerIp.acquire(ip)) return void ws.close(4029, 'busy');
-  const bucket = new MessageBucket();
-  let drops = 0;
-  // A socket that connects and never joins is dropped quickly.
-  const helloTimer = setTimeout(() => {
-    if (!me) ws.close(4008, 'hello timeout');
-  }, 10_000);
 
   const roomId = parseUrl(req.url)?.searchParams.get('room') ?? '';
   const room: Room | undefined = registry.get(roomId);
@@ -167,16 +163,32 @@ wss.on('connection', (ws: WebSocket, req) => {
     send: (msg) => ws.readyState === ws.OPEN && ws.send(JSON.stringify(msg)),
     close: () => ws.close(4000, 'replaced'),
   };
+
+  let me: string | null = null;
+  let ping: ReturnType<typeof setInterval> | undefined;
+  // A socket that connects and never joins is dropped quickly.
+  const helloTimer = setTimeout(() => {
+    if (!me) ws.close(4008, 'hello timeout');
+  }, HELLO_TIMEOUT_MS);
+  // Registered before anything can return early, so every exit path frees the slot and the timers.
+  ws.on('close', () => {
+    clearTimeout(helloTimer);
+    clearInterval(ping);
+    socketsPerIp.release(ip);
+    if (me && room) registry.disconnect(room, me, conn);
+  });
+
   if (!room) {
     conn.send({ t: 'error', code: 'no_room' });
     ws.close(4004, 'no_room');
     return;
   }
 
-  let me: string | null = null;
+  const bucket = new MessageBucket();
+  let drops = 0;
   let alive = true;
   ws.on('pong', () => (alive = true));
-  const ping = setInterval(() => {
+  ping = setInterval(() => {
     if (!alive) return ws.terminate();
     alive = false;
     ws.ping();
@@ -221,13 +233,6 @@ wss.on('connection', (ws: WebSocket, req) => {
       me = null;
       ws.close(1000, 'left');
     }
-  });
-
-  ws.on('close', () => {
-    clearInterval(ping);
-    clearTimeout(helloTimer);
-    socketsPerIp.release(ip);
-    if (me) registry.disconnect(room, me, conn);
   });
 });
 
