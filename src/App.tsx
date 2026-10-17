@@ -161,7 +161,7 @@ function Landing({ onCreated, onOpen, autoResume: resumeFirst }: { onCreated: (i
     <div className="landing">
       <div className="landing-card">
         <div className="logo">📍</div>
-        <h1>Group Map Share</h1>
+        <h1>Groupz</h1>
         <p className="tagline">See where your crew is, live. No app, no account, no phone numbers.</p>
         {events.length > 0 ? (
           <section className="events" data-testid="events-list" aria-label="Your events">

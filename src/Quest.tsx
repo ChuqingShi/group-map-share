@@ -80,7 +80,7 @@ export function QuestChip({ state, onClick }: { state: QuestState; onClick: () =
 
 export function QuestPanel({ state, onClose, onRestart }: { state: QuestState; onClose: () => void; onRestart: () => void }) {
   const p = progress(state);
-  const mailto = `mailto:kuhlmanne@gmail.com?subject=${encodeURIComponent('Group Map Share test results')}&body=${encodeURIComponent(resultsText(state))}`;
+  const mailto = `mailto:kuhlmanne@gmail.com?subject=${encodeURIComponent('Groupz test results')}&body=${encodeURIComponent(resultsText(state))}`;
   return (
     <section className="sheet panel" data-testid="quest-panel">
       <header className="panel-head">

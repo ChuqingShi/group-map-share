@@ -271,5 +271,5 @@ process.on('unhandledRejection', (err) => console.error('unhandled rejection (ke
 
 server.listen(PORT, HOST, () => {
   if (SERVE_STATIC && !HOST_KEY) console.log('GMS_HOST_KEY is not set: anyone who opens the site can start an event.');
-  console.log(`group-map-share server on http://${HOST}:${PORT}${SERVE_STATIC ? ' (serving dist/)' : ''}`);
+  console.log(`groupz server on http://${HOST}:${PORT}${SERVE_STATIC ? ' (serving dist/)' : ''}`);
 });

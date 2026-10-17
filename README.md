@@ -1,4 +1,4 @@
-# Group Map Share
+# Groupz
 
 See where your crew is, live, on a shared game-style map. Say how you feel, plant a flag
 ("lunch here?"), and everyone can say yes, no thanks, or "how about somewhere else".
