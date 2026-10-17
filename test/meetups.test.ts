@@ -60,6 +60,92 @@ test('moods are set, cleared, validated and go stale', () => {
   assert.equal(room.members.get(a.id)!.player.mood, null, 'stale mood cleared by sweep');
 });
 
+test('typed moods: any short text, any emoji or none, nothing smuggled in as an emoji', () => {
+  const { reg, room, join, tick } = setup();
+  const a = join('Ann');
+  const b = join('Bob');
+  const mood = () => room.members.get(a.id)!.player.mood;
+  reg.setMood(room, a.id, 'custom', '', '🌮', '  Dreaming of tacos \n ');
+  assert.deepEqual({ id: mood()?.id, emoji: mood()?.emoji, label: mood()?.label }, { id: 'custom', emoji: '🌮', label: 'Dreaming of tacos' });
+  const seen = b.conn.inbox.findLast((m) => m.t === 'player' && m.player.id === a.id);
+  assert.equal(seen?.t === 'player' && seen.player.mood?.label, 'Dreaming of tacos');
+
+  reg.setMood(room, a.id, 'custom', '', '', 'no emoji at all');
+  assert.equal(mood()?.emoji, '', 'blank emoji is allowed (clients show a speech bubble)');
+  reg.setMood(room, a.id, 'custom', '', '👩🏽‍🍳', '');
+  assert.equal(mood()?.emoji, '👩🏽‍🍳', 'joined emoji with skin tone survive');
+  assert.equal(mood()?.label, '');
+
+  reg.setMood(room, a.id, 'custom', '', '<b>hi</b>', 'x');
+  assert.equal(mood()?.emoji, '', 'markup and letters are not emoji');
+  reg.setMood(room, a.id, 'custom', '', 'abc123', 'x');
+  assert.equal(mood()?.emoji, '');
+  reg.setMood(room, a.id, 'custom', '', '🌮'.repeat(20), 'x');
+  assert.equal([...mood()!.emoji].length, 8, 'capped');
+  reg.setMood(room, a.id, 'custom', '', '', 'y'.repeat(100));
+  assert.equal([...mood()!.label].length, 24, 'text capped');
+
+  const before = mood();
+  reg.setMood(room, a.id, 'custom', '', '', '   '); // nothing to show: ignored
+  reg.setMood(room, a.id, 'custom', '', 5, 5);
+  assert.equal(mood(), before);
+  reg.setMood(room, a.id, 'hungry', '');
+  assert.deepEqual({ id: mood()?.id, emoji: mood()?.emoji, label: mood()?.label }, { id: 'hungry', emoji: '🍔', label: 'Hungry' }, 'presets carry their emoji and label');
+  tick(1);
+});
+
+test('organizers: with none everyone plants flags; with one, only organizers do; it opens up again when the last leaves', () => {
+  const { reg, room, tick } = setup();
+  const mk = (name: string, organizer?: unknown) => {
+    const conn = fakeConn();
+    const r = reg.join(room, conn, { name, avatar: '🦊', color: '#ff5d73', organizer }) as { id: string };
+    return { id: r.id, conn };
+  };
+  const guest = mk('Guest');
+  tick(200);
+  assert.ok(reg.createPlan(room, guest.id, lunch), 'no organizer yet: everyone can plant');
+  assert.equal(reg.hasOrganizer(room), false);
+
+  const boss = mk('Boss', true);
+  assert.equal(room.members.get(boss.id)!.player.organizer, true);
+  assert.equal(reg.hasOrganizer(room), true);
+  tick(200);
+  assert.equal(reg.createPlan(room, guest.id, { ...lunch, place: 'Bar' }), null, 'now only organizers plant');
+  assert.equal(errorsIn(guest.conn).at(-1), 'organizers_only');
+  assert.equal(room.plans.size, 1, 'the earlier plan is untouched');
+  assert.ok(reg.createPlan(room, boss.id, { ...lunch, place: 'Boss lunch' }), 'the organizer plants');
+  // Everyone can still join, leave and read plans, and ping their own.
+  const bossPlan = [...room.plans.values()].find((p) => p.by === boss.id)!;
+  reg.joinPlan(room, guest.id, bossPlan.id);
+  assert.ok(room.plans.get(bossPlan.id)!.joined.includes(guest.id));
+
+  // Becoming an organizer later (the checkbox in settings), and changing your mind.
+  reg.setOrganizer(room, guest.id, true);
+  tick(200);
+  assert.ok(reg.createPlan(room, guest.id, { ...lunch, place: 'Guest now organizes' }));
+  reg.setOrganizer(room, guest.id, 'yes');
+  assert.equal(room.members.get(guest.id)!.player.organizer, true, 'non-boolean is ignored');
+  reg.setOrganizer(room, guest.id, false);
+  reg.leave(room, boss.id);
+  assert.equal(reg.hasOrganizer(room), false, 'no organizers left');
+  tick(200);
+  assert.ok(reg.createPlan(room, guest.id, { ...lunch, place: 'Open again' }), 'with no organizer left everyone plants again');
+});
+
+test('a resumed player keeps their organizer choice unless the new hello says otherwise; junk values are ignored', () => {
+  const { reg, room } = setup();
+  const c1 = fakeConn();
+  const r1 = reg.join(room, c1, { name: 'A', avatar: '🦊', color: '#ff5d73', organizer: true }) as { id: string };
+  const token = (c1.inbox[0] as Extract<ServerMsg, { t: 'welcome' }>).token;
+  reg.join(room, fakeConn(), { name: 'A', avatar: '🦊', color: '#ff5d73', token });
+  assert.equal(room.members.get(r1.id)!.player.organizer, true, 'resume without the field keeps it');
+  reg.join(room, fakeConn(), { name: 'A', avatar: '🦊', color: '#ff5d73', token, organizer: false });
+  assert.equal(room.members.get(r1.id)!.player.organizer, false, 'an explicit false wins');
+  reg.join(room, fakeConn(), { name: 'B', avatar: '🐸', color: '#3ddc84', organizer: 'true' });
+  const b = [...room.members.values()].find((m) => m.player.name === 'B')!;
+  assert.equal(b.player.organizer, false, 'a string is not a boolean');
+});
+
 test('a plan starts with its creator joined and is broadcast with the name frozen in', () => {
   const { reg, room, join } = setup();
   const a = join('Eric');

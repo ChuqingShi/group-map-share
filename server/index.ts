@@ -242,7 +242,8 @@ wss.on('connection', (ws: WebSocket, req) => {
     if (!me || !registry.owns(room, me, conn)) return;
     if (msg.t === 'pos') registry.updatePosition(room, me, msg.lat, msg.lng, msg.acc);
     else if (msg.t === 'sharing') registry.setSharing(room, me, msg.on === true);
-    else if (msg.t === 'mood') registry.setMood(room, me, msg.mood, msg.note);
+    else if (msg.t === 'organizer') registry.setOrganizer(room, me, msg.on);
+    else if (msg.t === 'mood') registry.setMood(room, me, msg.mood, msg.note, msg.emoji, msg.text);
     else if (msg.t === 'plan') registry.createPlan(room, me, msg);
     else if (msg.t === 'plan_join') registry.joinPlan(room, me, msg.id);
     else if (msg.t === 'plan_leave') registry.leavePlan(room, me, msg.id);

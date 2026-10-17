@@ -7,6 +7,9 @@ import {
   BUBBLE_MAX,
   EVENT_NAME_MAX,
   MAX_PLANS_PER_PLAYER,
+  MOOD_EMOJI,
+  MOOD_LABEL,
+  MOOD_TEXT_MAX,
   MAX_PLANS_PER_ROOM,
   MAX_PLAYERS_PER_ROOM,
   MOODS,
@@ -102,6 +105,14 @@ export function cleanName(raw: unknown): string {
   return [...name].slice(0, NAME_MAX).join('') || 'Player';
 }
 
+/** Only emoji (and their joiners and skin tones): no letters, digits or markup smuggled in as an "emoji". '' when it is not one. */
+const EMOJI_ONLY = /^(?:\p{Extended_Pictographic}|\p{Emoji_Modifier}|\p{Regional_Indicator}|[\u200D\uFE0F\u20E3])+$/u;
+export function cleanEmoji(raw: unknown): string {
+  if (typeof raw !== 'string') return '';
+  const s = [...raw.trim()].slice(0, 8).join('');
+  return EMOJI_ONLY.test(s) ? s : '';
+}
+
 /** Free text from a client (place names, notes): no control characters, collapsed whitespace, length capped. */
 export function cleanText(raw: unknown, max: number): string {
   if (typeof raw !== 'string') return '';
@@ -137,7 +148,7 @@ export class RoomRegistry {
   join(
     room: Room,
     conn: Conn,
-    hello: { name: unknown; avatar: unknown; color: unknown; token?: unknown },
+    hello: { name: unknown; avatar: unknown; color: unknown; token?: unknown; organizer?: unknown },
   ): { id: string } | { error: 'room_full' } {
     const now = this.opts.now();
     room.lastActive = now;
@@ -178,6 +189,7 @@ export class RoomRegistry {
           online: true,
           sharing: false,
           mood: null,
+          organizer: false,
         },
       };
       room.members.set(member.player.id, member);
@@ -187,6 +199,7 @@ export class RoomRegistry {
     p.name = cleanName(hello.name);
     p.avatar = (AVATARS as readonly string[]).includes(hello.avatar as string) ? (hello.avatar as string) : p.avatar;
     p.color = (COLORS as readonly string[]).includes(hello.color as string) ? (hello.color as string) : p.color;
+    if (typeof hello.organizer === 'boolean') p.organizer = hello.organizer; // absent on a resume keeps what they had
     p.online = true;
 
     conn.send({
@@ -255,14 +268,36 @@ export class RoomRegistry {
     }
   }
 
+  // --- organizers --------------------------------------------------------------
+
+  /** Is anyone in the event an organizer? Then only organizers plant flags. */
+  hasOrganizer(room: Room): boolean {
+    for (const m of room.members.values()) if (m.player.organizer) return true;
+    return false;
+  }
+
+  setOrganizer(room: Room, id: string, on: unknown) {
+    const m = room.members.get(id);
+    if (!m || typeof on !== 'boolean' || m.player.organizer === on) return;
+    m.player.organizer = on;
+    room.lastActive = this.opts.now();
+    this.broadcast(room, { t: 'player', player: m.player });
+  }
+
   // --- moods -----------------------------------------------------------------
 
-  setMood(room: Room, id: string, mood: unknown, note: unknown) {
+  setMood(room: Room, id: string, mood: unknown, note: unknown, emoji?: unknown, text?: unknown) {
     const m = room.members.get(id);
     if (!m) return;
     const now = this.opts.now();
     if ((MOODS as readonly unknown[]).includes(mood)) {
-      m.player.mood = { id: mood as MoodId, note: cleanText(note, NOTE_MAX), at: now };
+      const preset = mood as MoodId;
+      m.player.mood = { id: preset, emoji: MOOD_EMOJI[preset], label: MOOD_LABEL[preset], note: cleanText(note, NOTE_MAX), at: now };
+    } else if (mood === 'custom') {
+      const label = cleanText(text, MOOD_TEXT_MAX);
+      const e = cleanEmoji(emoji);
+      if (!label && !e) return; // nothing to show
+      m.player.mood = { id: 'custom', emoji: e, label, note: cleanText(note, NOTE_MAX), at: now };
     } else if (mood === null) {
       m.player.mood = null;
     } else {
@@ -307,6 +342,10 @@ export class RoomRegistry {
     const place = cleanText(input.place, PLACE_MAX);
     if (!place || !(PLAN_KINDS as readonly unknown[]).includes(input.kind) || !validLatLng(input.lat, input.lng)) {
       this.tell(room, id, 'bad_plan');
+      return null;
+    }
+    if (this.hasOrganizer(room) && !m.player.organizer) {
+      this.tell(room, id, 'organizers_only');
       return null;
     }
     const mine = [...room.plans.values()].filter((p) => p.by === id).length;

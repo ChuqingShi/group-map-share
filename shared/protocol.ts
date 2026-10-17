@@ -10,7 +10,7 @@ export const MAX_PLAYERS_PER_ROOM = 50;
 // --- moods and meetup plans ------------------------------------------------
 
 /** How a player is feeling right now. Shown on their pin so a split-up crew can see who wants what. */
-export const MOODS = ['hungry', 'thirsty', 'coffee', 'tired', 'bored', 'hyped', 'chill'] as const;
+export const MOODS = ['hungry', 'thirsty', 'coffee', 'tired', 'bored', 'hyped', 'chill', 'lost'] as const;
 export type MoodId = (typeof MOODS)[number];
 export const MOOD_EMOJI: Record<MoodId, string> = {
   hungry: '🍔',
@@ -20,7 +20,22 @@ export const MOOD_EMOJI: Record<MoodId, string> = {
   bored: '🥱',
   hyped: '🎉',
   chill: '😎',
+  lost: '🧭',
 };
+export const MOOD_LABEL: Record<MoodId, string> = {
+  hungry: 'Hungry',
+  thirsty: 'Thirsty',
+  coffee: 'Need coffee',
+  tired: 'Tired',
+  bored: 'Bored',
+  hyped: 'Hyped',
+  chill: 'Chill',
+  lost: 'Lost',
+};
+/** Typed moods ("Dreaming of tacos") are short, like everything else people read on a map. */
+export const MOOD_TEXT_MAX = 24;
+/** A handful of common emoji for typed moods. The empty string is the blank choice (a speech bubble is shown). */
+export const QUICK_EMOJI = ['😋', '🍔', '☕', '🍻', '😴', '🥱', '🎉', '😎', '🤒', '🥵', '🥶', '🤩', '😅', '🧭', '🚶', '🏃', '🛍️', '🎶', '🤝', '🙌', '💤', '😬', '🥳', '😤'] as const;
 
 /** What a plan is for. Drives the emoji on the X and the sentence that gets spoken. */
 export const PLAN_KINDS = ['lunch', 'coffee', 'drinks', 'dinner', 'meetup'] as const;
@@ -50,7 +65,12 @@ export function planBubble(plan: Pick<Plan, 'kind' | 'place'>): { emoji: string;
 }
 
 export interface Mood {
-  id: MoodId;
+  /** A preset, or 'custom' when the person typed their own. */
+  id: MoodId | 'custom';
+  /** Shown on the pin and profile pic. Empty means the person chose no emoji (clients show a speech bubble). */
+  emoji: string;
+  /** "Hungry", or whatever they typed. */
+  label: string;
   note: string;
   /** Server time (ms since epoch) the mood was set. */
   at: number;
@@ -95,14 +115,19 @@ export interface Player {
   /** True while the player is actively sharing their location. */
   sharing: boolean;
   mood: Mood | null;
+  /** Ticked "I'm an organizer". While anyone in the event is one, only organizers can plant flags; with none, everyone can. */
+  organizer: boolean;
 }
 
 export type ClientMsg =
-  | { t: 'hello'; name: string; avatar: string; color: string; token?: string }
+  | { t: 'hello'; name: string; avatar: string; color: string; token?: string; organizer?: boolean }
+  /** Say whether I am an organizer (the join form asks too; this is for changing your mind later). */
+  | { t: 'organizer'; on: boolean }
   | { t: 'pos'; lat: number; lng: number; acc?: number | null }
   | { t: 'sharing'; on: boolean }
   | { t: 'leave' }
-  | { t: 'mood'; mood: MoodId | null; note?: string }
+  /** A preset (`mood` is its id), a typed one (`mood: 'custom'` with `emoji` and `text`), or null to clear. */
+  | { t: 'mood'; mood: MoodId | 'custom' | null; note?: string; emoji?: string; text?: string }
   /** Create a plan. With `ping`, everyone else in the room gets a spoken invitation. */
   | { t: 'plan'; kind: PlanKind; place: string; note?: string; lat: number; lng: number; ping?: boolean }
   | { t: 'plan_join'; id: string }
@@ -114,7 +139,7 @@ export type ClientMsg =
   /** A short thought bubble over my pin, already boiled down by the client from what I said or typed. */
   | { t: 'bubble'; emoji: string; text: string };
 
-export type ErrorCode = 'no_room' | 'room_full' | 'bad_message' | 'slow_down' | 'plan_limit' | 'bad_plan';
+export type ErrorCode = 'no_room' | 'room_full' | 'bad_message' | 'slow_down' | 'plan_limit' | 'bad_plan' | 'organizers_only';
 
 export type ServerMsg =
   | { t: 'welcome'; you: string; token: string; roomName: string; players: Player[]; plans: Plan[]; expiresIdleMs: number; now: number }
