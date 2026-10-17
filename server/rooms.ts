@@ -290,6 +290,19 @@ export class RoomRegistry {
     this.broadcast(room, { t: 'player', player: m.player });
   }
 
+  /** Rename the event: same rule as flags (anyone, unless an organizer exists). Cleaned like a creation name; empty or unchanged is ignored. */
+  renameRoom(room: Room, id: string, name: unknown) {
+    const m = room.members.get(id);
+    if (!m) return;
+    if (this.hasOrganizer(room) && !m.player.organizer) return this.tell(room, id, 'organizers_only');
+    const clean = cleanText(name, EVENT_NAME_MAX);
+    if (!clean || clean === room.name) return;
+    room.name = clean;
+    m.active = true;
+    room.lastActive = this.opts.now();
+    this.broadcast(room, { t: 'room', name: clean });
+  }
+
   /** Rename myself. Cleaned like a join name; an empty or unchanged name is ignored. */
   setName(room: Room, id: string, name: unknown) {
     const m = room.members.get(id);

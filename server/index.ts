@@ -246,6 +246,7 @@ wss.on('connection', (ws: WebSocket, req) => {
     else if (msg.t === 'organizer') registry.setOrganizer(room, me, msg.on);
     else if (msg.t === 'contact') registry.setContact(room, me, msg.text);
     else if (msg.t === 'profile') registry.setName(room, me, msg.name);
+    else if (msg.t === 'room_name') registry.renameRoom(room, me, msg.name);
     else if (msg.t === 'mood') registry.setMood(room, me, msg.mood, msg.note, msg.emoji, msg.text);
     else if (msg.t === 'plan') registry.createPlan(room, me, msg);
     else if (msg.t === 'plan_join') registry.joinPlan(room, me, msg.id);

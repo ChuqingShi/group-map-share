@@ -48,3 +48,55 @@ scenario('10. settings: the gear opens a window with notify, awake, voice and le
   ann.assertNoErrors();
   bob.assertNoErrors();
 });
+
+scenario('17. rename the event: anyone can, everyone sees the new name, and once there is an organizer only organizers can', async (s) => {
+  const ann = await s.player('Ann', SPOTS.ann);
+  const bob = await s.player('Bob', SPOTS.bob, { roomUrl: ann.roomUrl });
+  await Promise.all([waitForCrew(ann, 2), waitForCrew(bob, 2)]);
+
+  await openSettings(bob);
+  await bob.tid('event-rename-input').fill('Team lunch');
+  await bob.tid('btn-event-rename').click();
+  await eventually(async () => assert.match(await ann.tid('event-title').innerText(), /team lunch/i), { message: "Ann's title shows the new name" });
+  await closeSheet(bob, 'settings-sheet');
+
+  // Ann becomes an organizer: now Bob cannot rename.
+  await openSettings(ann);
+  await setToggle(ann.tid('btn-organizer'), true);
+  await closeSheet(ann, 'settings-sheet');
+  await eventually(async () => {
+    await openSettings(bob);
+    assert.equal(await bob.tid('event-rename-input').count(), 0);
+    assert.equal(await bob.tid('rename-locked').count(), 1);
+  }, { message: 'Bob is locked out of renaming' });
+  await closeSheet(bob, 'settings-sheet');
+
+  // The organizer can, and it sticks across a reload.
+  await openSettings(ann);
+  await ann.tid('event-rename-input').fill('Demo day');
+  await ann.tid('btn-event-rename').click();
+  await closeSheet(ann, 'settings-sheet');
+  await eventually(async () => assert.match(await bob.tid('event-title').innerText(), /demo day/i), { message: "Bob's title shows Demo day" });
+  await ann.page.reload();
+  await waitForCrew(ann, 2);
+  await eventually(async () => assert.match(await ann.tid('event-title').innerText(), /demo day/i), { message: 'the name survives a reload' });
+
+  ann.assertNoErrors();
+  bob.assertNoErrors();
+});
+
+scenario('17b. an explicit Allow notifications button shows only while the browser has not been asked', async (s) => {
+  const ann = await s.player('Ann', SPOTS.ann, { permissions: ['notifications'] }); // already allowed
+  const bob = await s.player('Bob', SPOTS.bob, { roomUrl: ann.roomUrl }); // never asked
+  await Promise.all([waitForCrew(ann, 2), waitForCrew(bob, 2)]);
+  await openSettings(ann);
+  assert.equal(await ann.tid('btn-allow-notifications').count(), 0, 'already allowed: no button');
+  await closeSheet(ann, 'settings-sheet');
+  // Headless Chrome answers the join-time prompt by itself; make Bob look like a browser that has not been asked.
+  await bob.page.evaluate(() => Object.defineProperty(Notification, 'permission', { get: () => 'default', configurable: true }));
+  await openSettings(bob);
+  assert.equal(await bob.tid('btn-allow-notifications').count(), 1, 'never asked: the button is there');
+  assert.equal(await bob.tid('btn-allow-notifications').isEnabled(), true);
+  ann.assertNoErrors();
+  bob.assertNoErrors();
+});

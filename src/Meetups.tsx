@@ -4,6 +4,7 @@ import {
   MOODS,
   MOOD_EMOJI,
   MOOD_TEXT_MAX,
+  EVENT_NAME_MAX,
   NOTE_MAX,
   PLACE_MAX,
   PLAN_EMOJI,
@@ -248,9 +249,40 @@ export function SuggestSheet({ plan, onSend, onClose }: { plan: Plan; onSend: (p
   );
 }
 
+/** The event's name, editable by anyone (or only organizers, when there is one). */
+function RenameEvent({ eventName, canRename, onRename }: { eventName: string; canRename: boolean; onRename: (name: string) => void }) {
+  const [draft, setDraft] = useState(eventName);
+  const dirty = draft.trim() !== '' && draft.trim() !== eventName;
+  if (!canRename) return <p className="suggest" data-testid="rename-locked">⭐ <b>{eventName}</b>: only organizers can rename this event.</p>;
+  return (
+    <div className="mood-custom-row rename-row">
+      <input
+        data-testid="event-rename-input"
+        aria-label="Event name"
+        value={draft}
+        maxLength={EVENT_NAME_MAX}
+        enterKeyHint="done"
+        autoComplete="off"
+        placeholder="Event name"
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && dirty) onRename(draft.trim());
+        }}
+      />
+      <button type="button" className="btn btn-small" data-testid="btn-event-rename" disabled={!dirty} onClick={() => onRename(draft.trim())}>Rename</button>
+    </div>
+  );
+}
+
 // --- settings ---------------------------------------------------------------------
 
-export function SettingsSheet({ notif, onNotif, awake, awakeSupported, onAwake, voice, onVoice, sfx, onSfx, onLegend, onQuest, organizer, onOrganizer, leaveArmed, onLeave, onClose }: {
+export function SettingsSheet({ eventName, canRename, onRename, notif, notifCanAsk, onNotif, awake, awakeSupported, onAwake, voice, onVoice, sfx, onSfx, onLegend, onQuest, organizer, onOrganizer, leaveArmed, onLeave, onClose }: {
+  eventName: string;
+  /** False when the event has an organizer and I am not one. */
+  canRename: boolean;
+  onRename: (name: string) => void;
+  /** The browser has not been asked yet, so a tap can show its permission pop-up. */
+  notifCanAsk: boolean;
   notif: 'on' | 'off' | 'blocked' | 'unsupported';
   onNotif: (on: boolean) => void;
   awake: boolean;
@@ -270,10 +302,16 @@ export function SettingsSheet({ notif, onNotif, awake, awakeSupported, onAwake, 
 }) {
   return (
     <Panel title="Settings" testid="settings-sheet" onClose={onClose}>
+      <RenameEvent eventName={eventName} canRename={canRename} onRename={onRename} />
       <label className="voice-toggle">
         <input type="checkbox" data-testid="btn-organizer" checked={organizer} onChange={(e) => onOrganizer(e.target.checked)} />
         <span>⭐ I'm an organizer <em>(while anyone is, only organizers plant flags)</em></span>
       </label>
+      {notifCanAsk && notif !== 'on' && (
+        <button type="button" className="btn btn-big" data-testid="btn-allow-notifications" onClick={() => onNotif(true)}>
+          🔔 Allow notifications
+        </button>
+      )}
       <label className="voice-toggle">
         <input type="checkbox" data-testid="btn-notify" checked={notif === 'on'} disabled={notif === 'blocked' || notif === 'unsupported'} onChange={(e) => onNotif(e.target.checked)} />
         <span>

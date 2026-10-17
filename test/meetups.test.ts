@@ -146,6 +146,28 @@ test('a resumed player keeps their organizer choice unless the new hello says ot
   assert.equal(b.player.organizer, false, 'a string is not a boolean');
 });
 
+test('renaming the event: anyone, unless an organizer exists; cleaned, bounded, and everyone is told', () => {
+  const { reg, room, join, tick } = setup();
+  const ann = join('Ann');
+  const bob = join('Bob');
+  reg.renameRoom(room, bob.id, '  Team\u0000 lunch  ');
+  assert.equal(room.name, 'Team lunch');
+  assert.ok(ann.conn.inbox.some((m) => m.t === 'room' && m.name === 'Team lunch'), 'the crew is told');
+  reg.renameRoom(room, ann.id, '   ');
+  reg.renameRoom(room, ann.id, 7);
+  reg.renameRoom(room, 'nobody', 'x');
+  assert.equal(room.name, 'Team lunch', 'empty and non-string names are ignored');
+  reg.renameRoom(room, ann.id, 'y'.repeat(100));
+  assert.equal([...room.name].length, 40, 'capped like a creation name');
+  tick(1);
+  reg.setOrganizer(room, ann.id, true);
+  reg.renameRoom(room, bob.id, 'Bob takes over');
+  assert.equal(errorsIn(bob.conn).at(-1), 'organizers_only');
+  assert.equal([...room.name].length, 40, 'unchanged');
+  reg.renameRoom(room, ann.id, 'Organizer says');
+  assert.equal(room.name, 'Organizer says');
+});
+
 test('renaming: cleaned like a join name, empty or non-string ignored, others are told', () => {
   const { reg, room, join } = setup();
   const ann = join('Ann');

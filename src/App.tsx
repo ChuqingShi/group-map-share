@@ -678,11 +678,15 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
         />
       ) : panel === 'settings' ? (
         <SettingsSheet
+          eventName={room.roomName}
+          canRename={canPlant}
+          onRename={(name) => room.send({ t: 'room_name', name })}
           voice={voice}
           sfx={sfx}
           onSfx={(on) => { setSfxOn(on); setSfx(on); if (on) unlockSfx(); }}
           onVoice={(on) => { setVoiceOn(on); setVoice(on); if (on) unlockVoice(); }}
           notif={notifPhase(notifOn)}
+          notifCanAsk={notifyPermission() === 'default'}
           onNotif={(on) => {
             if (!on) return void (disableNotifications(), setNotifOn(false));
             void enableNotifications().then(setNotifOn);

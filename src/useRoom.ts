@@ -109,6 +109,10 @@ export function useRoom(roomId: string, profile: Profile | null) {
           case 'plan':
             setPlans((ps) => ({ ...ps, [msg.plan.id]: msg.plan }));
             break;
+          case 'room':
+            touchEvent(roomId, { name: msg.name });
+            setRoomName(msg.name);
+            break;
           case 'plan_gone':
             setPlans((ps) => {
               const { [msg.id]: _gone, ...rest } = ps;

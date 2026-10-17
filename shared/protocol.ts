@@ -145,6 +145,8 @@ export type ClientMsg =
   | { t: 'contact'; text: string }
   /** Change my display name. */
   | { t: 'profile'; name: string }
+  /** Rename the event. Anyone can, unless the event has an organizer; then only organizers. */
+  | { t: 'room_name'; name: string }
   /** Say whether I am an organizer (the join form asks too; this is for changing your mind later). */
   | { t: 'organizer'; on: boolean }
   | { t: 'pos'; lat: number; lng: number; acc?: number | null }
@@ -176,6 +178,8 @@ export type ServerMsg =
   /** Create or update a plan. */
   | { t: 'plan'; plan: Plan }
   | { t: 'plan_gone'; id: string }
+  /** The event was renamed. */
+  | { t: 'room'; name: string }
   /** The creator pinged the room: toast it, bubble it, optionally speak it. Never sent back to the creator. */
   | { t: 'ping'; plan: Plan }
   /** Somebody's thought bubble. Sent to everyone, including the sender. */
