@@ -3,3 +3,7 @@ dist/
 *.log
 .DS_Store
 .env*
+e2e/artifacts/
+
+# throwaway host passphrase for demos
+.demo-host-key
