@@ -63,3 +63,7 @@ Alternative without Chrome: `npx playwright-core install chromium --with-deps` a
 
 The GitHub token on the original dev machine lacks the `workflow` scope, so `ci.yml` cannot be pushed from there. Add it
 from the GitHub web UI, or from a machine whose token has `workflow` (`gh auth refresh -s workflow`).
+
+## CI
+
+The GitHub Actions workflow is saved as `docs/ci/ci.yml` because this repo's pushes were made with a token that cannot push workflow files. To enable it: `gh auth refresh -s workflow`, move it to `.github/workflows/ci.yml`, push.

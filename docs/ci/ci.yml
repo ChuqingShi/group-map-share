@@ -1,0 +1,63 @@
+# Groupz CI workflow. GitHub refuses workflow files pushed with a token that lacks the 'workflow' scope,
+# so it is kept here. To turn it on: run 'gh auth refresh -s workflow', then move this file to
+# .github/workflows/ci.yml and push.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Typecheck, unit tests, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run typecheck:e2e
+      - run: npm test
+      - run: npm run build
+
+  e2e:
+    name: Browser end-to-end
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # The suite drives a real Chrome (channel "chrome"). GitHub's ubuntu runners ship with Google Chrome,
+      # so nothing is downloaded. If an image ever drops it, install the same browser with Playwright's script.
+      - name: Make sure Google Chrome is available
+        run: |
+          if ! command -v google-chrome >/dev/null 2>&1; then
+            npx playwright-core install chrome --with-deps
+          fi
+          google-chrome --version
+      # "npm run e2e" builds the app first, then runs e2e/*.e2e.ts one file at a time.
+      - run: npm run e2e
+      - name: Upload screenshots and logs from failed scenarios
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-artifacts
+          path: e2e/artifacts/
+          if-no-files-found: ignore
+          retention-days: 7
