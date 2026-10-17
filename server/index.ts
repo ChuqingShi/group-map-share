@@ -6,7 +6,7 @@ import { extname, join, normalize, resolve, sep } from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { RoomRegistry, type Conn, type Room } from './rooms.ts';
 import { serverConfig } from './config.ts';
-import { ConnectionLimiter, MessageBucket, SECURITY_HEADERS, callerIp, hostKeyOk, originOk } from './security.ts';
+import { ConnectionLimiter, MessageBucket, RateWindow, SECURITY_HEADERS, callerIp, hostKeyOk, originOk } from './security.ts';
 import type { ClientMsg } from '../shared/protocol.ts';
 
 const { port: PORT, host: HOST, serveStatic: SERVE_STATIC, behindProxy } = serverConfig(process.env);
@@ -14,8 +14,15 @@ const STATIC_DIR = resolve(import.meta.dirname, '..', 'dist');
 /** When set, only requests carrying this key may start an event (the host link stores it). Joining stays open to anyone with the room link. */
 const HOST_KEY = process.env.GMS_HOST_KEY || undefined;
 const EXTRA_ORIGINS = (process.env.GMS_ALLOWED_ORIGINS ?? '').split(',').map((o) => o.trim()).filter(Boolean);
-const socketsPerIp = new ConnectionLimiter(30);
+// Venue Wi-Fi puts a whole audience behind one public address, so this is generous; it only stops one address hoarding sockets.
+const socketsPerIp = new ConnectionLimiter(200);
+/** New identities (joins without a resume token) per address per room, so one invite holder cannot fill a room with ghosts. */
+const newIdentities = new RateWindow(10 * 60_000, 60);
+/** How many proxies sit in front of us and append to X-Forwarded-For. */
+const TRUSTED_HOPS = Math.max(1, Number(process.env.GMS_TRUSTED_HOPS) || 1);
 const MAX_SOCKETS = 2_000;
+/** Identifies this deploy, so the app can show its test mission once per new build. */
+const BUILD = process.env.GMS_BUILD || process.env.RENDER_GIT_COMMIT?.slice(0, 7) || Date.now().toString(36);
 /** How long a socket may sit without joining. Overridable so tests do not wait ten seconds. */
 const HELLO_TIMEOUT_MS = Number(process.env.GMS_HELLO_TIMEOUT_MS) || 10_000;
 
@@ -47,16 +54,17 @@ const MIME: Record<string, string> = {
 };
 
 /** Read a tiny JSON object body (event name). Anything odd, oversized or missing is just null. */
-function readJson(req: IncomingMessage): Promise<Record<string, unknown> | null> {
+function readJson(req: IncomingMessage): Promise<Record<string, unknown> | null | 'too_big'> {
   return new Promise((resolve) => {
     const chunks: Buffer[] = [];
     let size = 0;
     req.on('data', (c: Buffer) => {
       size += c.length;
       if (size > 1024) {
-        req.destroy();
-        resolve(null);
-      } else chunks.push(c);
+        resolve('too_big');
+        req.resume(); // drain, so we can still answer
+        chunks.length = 0;
+      } else if (size <= 1024) chunks.push(c);
     });
     req.on('end', () => {
       try {
@@ -125,9 +133,10 @@ const server = createServer(async (req, res) => {
   if (!url) return json(res, 400, { error: 'bad url' });
   if (url.pathname === '/api/rooms' && req.method === 'POST') {
     if (!hostKeyOk(HOST_KEY, req.headers['x-host-key'])) return json(res, 403, { error: 'host_only' });
-    const ip = callerIp(req, behindProxy);
+    const ip = callerIp(req, behindProxy, TRUSTED_HOPS);
     if (!allowCreate(ip)) return json(res, 429, { error: 'too many rooms, try again later' });
     const body = await readJson(req);
+    if (body === 'too_big') return json(res, 413, { error: 'too big' });
     const room = registry.create(body?.name);
     return room ? json(res, 201, { id: room.id, name: room.name }) : json(res, 503, { error: 'server full' });
   }
@@ -136,7 +145,8 @@ const server = createServer(async (req, res) => {
     const room = registry.get(m[1]);
     return room ? json(res, 200, { id: room.id, name: room.name, players: room.members.size }) : json(res, 404, { error: 'no_room' });
   }
-  if (url.pathname === '/api/health') return json(res, 200, { ok: true, rooms: registry.rooms.size });
+  if (url.pathname === '/api/health') return json(res, 200, { ok: true });
+  if (url.pathname === '/api/version') return json(res, 200, { build: BUILD });
   if (SERVE_STATIC && req.method === 'GET') return serveStatic(url, res);
   json(res, 404, { error: 'not found' });
 });
@@ -153,8 +163,13 @@ const wss = new WebSocketServer({
   verifyClient: ({ req }: { req: IncomingMessage }) => originOk(req, EXTRA_ORIGINS) && wss.clients.size < MAX_SOCKETS,
 });
 
+wss.on('error', (err) => console.error('websocket server error:', err));
+
 wss.on('connection', (ws: WebSocket, req) => {
-  const ip = callerIp(req, behindProxy);
+  // ws emits 'error' for protocol faults (oversize or malformed frames). Without a listener Node treats it as
+  // uncaught and kills the process, taking every live event with it. ws closes the socket itself.
+  ws.on('error', () => {});
+  const ip = callerIp(req, behindProxy, TRUSTED_HOPS);
   if (!socketsPerIp.acquire(ip)) return void ws.close(4029, 'busy');
 
   const roomId = parseUrl(req.url)?.searchParams.get('room') ?? '';
@@ -165,6 +180,7 @@ wss.on('connection', (ws: WebSocket, req) => {
   };
 
   let me: string | null = null;
+  let left = false;
   let ping: ReturnType<typeof setInterval> | undefined;
   // A socket that connects and never joins is dropped quickly.
   const helloTimer = setTimeout(() => {
@@ -195,6 +211,7 @@ wss.on('connection', (ws: WebSocket, req) => {
   }, 20_000);
 
   ws.on('message', (data) => {
+    if (left) return;
     // Sustained flooding gets the socket closed; short bursts are fine.
     if (!bucket.allow()) {
       if (++drops > 60) ws.close(4009, 'slow down');
@@ -210,6 +227,10 @@ wss.on('connection', (ws: WebSocket, req) => {
     if (typeof msg !== 'object' || msg === null) return conn.send({ t: 'error', code: 'bad_message' });
     if (msg.t === 'hello') {
       if (me) return;
+      if (typeof msg.token !== 'string' && !newIdentities.allow(`${ip}|${room.id}`)) {
+        conn.send({ t: 'error', code: 'slow_down' });
+        return ws.close(4030, 'too many joins');
+      }
       const r = registry.join(room, conn, msg);
       if ('error' in r) {
         conn.send({ t: 'error', code: r.error });
@@ -231,11 +252,17 @@ wss.on('connection', (ws: WebSocket, req) => {
     else if (msg.t === 'leave') {
       registry.leave(room, me);
       me = null;
+      left = true;
       ws.close(1000, 'left');
     }
   });
 });
 
+// Last line of defence: log and keep serving rather than dropping every live event over one bad request.
+process.on('uncaughtException', (err) => console.error('uncaught exception (kept running):', err));
+process.on('unhandledRejection', (err) => console.error('unhandled rejection (kept running):', err));
+
 server.listen(PORT, HOST, () => {
+  if (SERVE_STATIC && !HOST_KEY) console.log('GMS_HOST_KEY is not set: anyone who opens the site can start an event.');
   console.log(`group-map-share server on http://${HOST}:${PORT}${SERVE_STATIC ? ' (serving dist/)' : ''}`);
 });

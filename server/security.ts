@@ -7,15 +7,18 @@ import type { IncomingMessage } from 'node:http';
 const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
 
 /**
- * The caller's address. A reverse proxy reports the real one in X-Forwarded-For. We only believe
- * that header when we know a proxy sits in front (Render) or when the hop is loopback, i.e. a local
- * proxy such as Tailscale Funnel, where no remote client can have forged it.
+ * The caller's address. A reverse proxy reports the real one in X-Forwarded-For, and each proxy
+ * APPENDS what it saw, so the entries on the left are whatever the client chose to send. We only
+ * believe the header when we know a proxy sits in front (Render) or when the hop is loopback (a local
+ * proxy such as Tailscale Funnel), and then we take the entry the last trusted proxy wrote:
+ * `hops` from the right (1 for one proxy; raise GMS_TRUSTED_HOPS if there are more in front).
  */
-export function callerIp(req: IncomingMessage, trustForwarded: boolean): string {
+export function callerIp(req: IncomingMessage, trustForwarded: boolean, hops = 1): string {
   const remote = req.socket.remoteAddress ?? '?';
+  if (!trustForwarded && !LOOPBACK.has(remote)) return remote;
   const fwd = req.headers['x-forwarded-for'];
-  const first = (Array.isArray(fwd) ? fwd[0] : fwd)?.split(',')[0]?.trim();
-  return first && (trustForwarded || LOOPBACK.has(remote)) ? first : remote;
+  const parts = (Array.isArray(fwd) ? fwd.join(',') : (fwd ?? '')).split(',').map((p) => p.trim()).filter(Boolean);
+  return parts[Math.max(0, parts.length - hops)] ?? remote;
 }
 
 /** Host key check for starting events. With no key configured (local development) everyone may. */
@@ -26,22 +29,33 @@ export function hostKeyOk(required: string | undefined, given: unknown): boolean
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-/** A WebSocket opened by a page on another website is refused. Non-browser clients send no Origin and are not affected. */
+/** host:port with default ports dropped, lower case: "X.ts.net:443" and "x.ts.net" are the same site. */
+const siteOf = (h: string) => h.toLowerCase().replace(/:(443|80)$/, '');
+
+/**
+ * A WebSocket opened by a page on another site (or another port of this host) is refused. Non-browser
+ * clients send no Origin and are not affected. `extraAllowed` takes hosts or full URLs.
+ */
 export function originOk(req: IncomingMessage, extraAllowed: readonly string[] = []): boolean {
   const origin = req.headers.origin;
   if (!origin) return true;
-  let host: string;
+  let site: string;
   try {
-    host = new URL(origin).host.toLowerCase();
+    site = siteOf(new URL(origin).host);
   } catch {
     return false;
   }
   const fwdHost = req.headers['x-forwarded-host'];
-  const mine = [req.headers.host, Array.isArray(fwdHost) ? fwdHost[0] : fwdHost, ...extraAllowed]
+  const extra = extraAllowed.map((e) => {
+    try {
+      return new URL(e).host;
+    } catch {
+      return e;
+    }
+  });
+  return [req.headers.host, Array.isArray(fwdHost) ? fwdHost[0] : fwdHost, ...extra]
     .filter((h): h is string => typeof h === 'string')
-    .map((h) => h.toLowerCase());
-  const bare = (h: string) => h.replace(/:\d+$/, '');
-  return mine.some((h) => h === host || bare(h) === bare(host));
+    .some((h) => siteOf(h) === site);
 }
 
 /** Caps simultaneous sockets per address. */
@@ -61,6 +75,28 @@ export class ConnectionLimiter {
     const n = (this.counts.get(ip) ?? 1) - 1;
     if (n <= 0) this.counts.delete(ip);
     else this.counts.set(ip, n);
+  }
+}
+
+/** At most `max` events per key within `windowMs` (for example new identities per address per room). */
+export class RateWindow {
+  private readonly hits = new Map<string, number[]>();
+  private readonly windowMs: number;
+  private readonly max: number;
+  constructor(windowMs: number, max: number) {
+    this.windowMs = windowMs;
+    this.max = max;
+  }
+  allow(key: string, now = Date.now()): boolean {
+    if (this.hits.size > 5_000) this.hits.clear(); // bounded memory under a flood of fake keys
+    const recent = (this.hits.get(key) ?? []).filter((t) => now - t < this.windowMs);
+    if (recent.length >= this.max) {
+      this.hits.set(key, recent);
+      return false;
+    }
+    recent.push(now);
+    this.hits.set(key, recent);
+    return true;
   }
 }
 

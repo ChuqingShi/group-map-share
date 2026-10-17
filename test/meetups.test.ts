@@ -21,6 +21,7 @@ function setup() {
     minPlanIntervalMs: 100,
     pingCooldownMs: 1000,
     bubbleCooldownMs: 500,
+    roomPingCooldownMs: 200,
     moodTtlMs: 5000,
     planTtlMs: 5000,
     idleMs: 60_000,
@@ -181,6 +182,70 @@ test('a ping reaches everyone except the creator, only the creator can send it, 
   tick(600);
   assert.equal(reg.pingPlan(room, a.id, plan.id), true);
   assert.equal(pingsIn(b.conn).length, 2);
+});
+
+test('the ping cooldown is per room too, so a new identity cannot reset it', () => {
+  let now = 1_000_000;
+  const reg = new RoomRegistry({ now: () => now, minPlanIntervalMs: 0, pingCooldownMs: 1000, roomPingCooldownMs: 4000 });
+  const room = reg.create()!;
+  const a = reg.join(room, fakeConn(), { name: 'A', avatar: '🦊', color: '#ff5d73' }) as { id: string };
+  const planA = reg.createPlan(room, a.id, { ...lunch, ping: true })!;
+  assert.ok(planA);
+  const cb = fakeConn();
+  const b = reg.join(room, cb, { name: 'B', avatar: '🐸', color: '#3ddc84' }) as { id: string };
+  now += 1500; // past the player cooldown but inside the room's
+  const planB = reg.createPlan(room, b.id, { ...lunch, place: 'Bar' })!;
+  assert.equal(reg.pingPlan(room, b.id, planB.id), false, 'fresh identity, same room cooldown');
+  assert.equal(errorsIn(cb).at(-1), 'slow_down');
+  now += 4000;
+  assert.equal(reg.pingPlan(room, b.id, planB.id), true);
+});
+
+test('joiners who never do anything are dropped quickly; people who shared something are kept', () => {
+  let now = 1_000_000;
+  const reg = new RoomRegistry({ now: () => now, ghostGraceMs: 60_000, offlineGraceMs: 3 * 3600_000, minPosIntervalMs: 0 });
+  const room = reg.create()!;
+  const ghostC = fakeConn();
+  const realC = fakeConn();
+  const ghost = reg.join(room, ghostC, { name: 'ghost', avatar: '🦊', color: '#ff5d73' }) as { id: string };
+  const real = reg.join(room, realC, { name: 'real', avatar: '🐸', color: '#3ddc84' }) as { id: string };
+  now += 100;
+  reg.updatePosition(room, real.id, 1, 1, null);
+  reg.disconnect(room, ghost.id, ghostC);
+  reg.disconnect(room, real.id, realC);
+  now += 61_000;
+  reg.sweep();
+  assert.equal(room.members.has(ghost.id), false, 'ghost gone after a minute');
+  assert.equal(room.members.has(real.id), true, 'someone who shared stays for resume');
+});
+
+test('a paused player stays paused until they say otherwise, whatever late positions arrive', () => {
+  let now = 1_000_000;
+  const reg = new RoomRegistry({ now: () => now, minPosIntervalMs: 0 });
+  const room = reg.create()!;
+  const me = reg.join(room, fakeConn(), { name: 'A', avatar: '🦊', color: '#ff5d73' }) as { id: string };
+  const p = room.members.get(me.id)!.player;
+  now += 10;
+  reg.updatePosition(room, me.id, 1, 1, null);
+  assert.equal(p.sharing, true);
+  reg.setSharing(room, me.id, false);
+  assert.equal(p.pos, null);
+  now += 10;
+  reg.updatePosition(room, me.id, 2, 2, null); // a late geolocation callback, or a hostile client
+  assert.equal(p.pos, null, 'still hidden');
+  assert.equal(p.sharing, false);
+  reg.setSharing(room, me.id, true);
+  now += 10;
+  reg.updatePosition(room, me.id, 3, 3, null);
+  assert.equal((p.pos as { lat: number } | null)?.lat, 3, 'sharing again after they resumed');
+});
+
+test('names made only of invisible characters become the default name', () => {
+  const reg = new RoomRegistry();
+  const room = reg.create()!;
+  const c = fakeConn();
+  reg.join(room, c, { name: '\u3164\u2800\u3164', avatar: '🦊', color: '#ff5d73' });
+  assert.equal([...room.members.values()][0].player.name, 'Player');
 });
 
 test('a plan created during the ping cooldown still exists but is not announced', () => {

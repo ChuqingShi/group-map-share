@@ -30,6 +30,10 @@ interface Member {
   lastPlanAt: number;
   lastPingAt: number;
   lastBubbleAt: number;
+  /** True once they have done anything beyond joining (shared a position, a mood, a flag...). Silent joiners are not kept for hours. */
+  active: boolean;
+  /** They chose to pause: late position updates must not switch sharing back on. */
+  paused: boolean;
   /** When the member went offline; used to drop them after OFFLINE_GRACE_MS. */
   offlineSince: number | null;
 }
@@ -42,6 +46,8 @@ export interface Room {
   lastActive: number;
   members: Map<string, Member>;
   plans: Map<string, Plan>;
+  /** Last ping from anyone, so re-joining as a new person does not reset the cooldown. */
+  lastPingAt: number;
 }
 
 export interface RoomOptions {
@@ -57,6 +63,10 @@ export interface RoomOptions {
   minPlanIntervalMs: number;
   /** Minimum gap between spoken pings from one player, so nobody can spam the room. */
   pingCooldownMs: number;
+  /** Minimum gap between pings from anybody in the room. */
+  roomPingCooldownMs: number;
+  /** A joiner who never does anything is dropped after this long offline. */
+  ghostGraceMs: number;
   /** Minimum gap between thought bubbles from one player. */
   bubbleCooldownMs: number;
   /** A mood goes stale (and is cleared) after this long. */
@@ -74,6 +84,8 @@ export const DEFAULT_OPTIONS: RoomOptions = {
   minPosIntervalMs: 400,
   minPlanIntervalMs: 2_000,
   pingCooldownMs: 15_000,
+  roomPingCooldownMs: 4_000,
+  ghostGraceMs: 60_000,
   bubbleCooldownMs: 3_000,
   moodTtlMs: 2 * 60 * 60_000,
   planTtlMs: 3 * 60 * 60_000,
@@ -86,14 +98,14 @@ const randomId = (bytes: number) => randomBytes(bytes).toString('base64url');
 export function cleanName(raw: unknown): string {
   if (typeof raw !== 'string') return 'Player';
   // Strip control characters and collapse whitespace.
-  const name = raw.replace(/[\p{Cc}\p{Cf}]/gu, '').replace(/\s+/g, ' ').trim();
+  const name = raw.replace(/[\p{Cc}\p{Cf}\u3164\u2800\u115F\u1160]/gu, '').replace(/\s+/g, ' ').trim();
   return [...name].slice(0, NAME_MAX).join('') || 'Player';
 }
 
 /** Free text from a client (place names, notes): no control characters, collapsed whitespace, length capped. */
 export function cleanText(raw: unknown, max: number): string {
   if (typeof raw !== 'string') return '';
-  const text = raw.replace(/[\p{Cc}\p{Cf}]/gu, '').replace(/\s+/g, ' ').trim();
+  const text = raw.replace(/[\p{Cc}\p{Cf}\u3164\u2800\u115F\u1160]/gu, '').replace(/\s+/g, ' ').trim();
   return [...text].slice(0, max).join('');
 }
 
@@ -112,7 +124,7 @@ export class RoomRegistry {
     if (this.rooms.size >= this.opts.maxRooms) return null;
     const now = this.opts.now();
     // 128 bits: unguessable, so the link itself is the only key to the room.
-    const room: Room = { id: randomId(16), name: cleanText(name, EVENT_NAME_MAX) || 'Our event', createdAt: now, lastActive: now, members: new Map(), plans: new Map() };
+    const room: Room = { id: randomId(16), name: cleanText(name, EVENT_NAME_MAX) || 'Our event', createdAt: now, lastActive: now, members: new Map(), plans: new Map(), lastPingAt: 0 };
     this.rooms.set(room.id, room);
     return room;
   }
@@ -154,6 +166,8 @@ export class RoomRegistry {
         lastPlanAt: 0,
         lastPingAt: 0,
         lastBubbleAt: 0,
+        active: false,
+        paused: false,
         offlineSince: null,
         player: {
           id: randomId(6),
@@ -199,9 +213,11 @@ export class RoomRegistry {
     if (!m) return false;
     if (typeof lat !== 'number' || typeof lng !== 'number') return false;
     if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return false;
+    if (m.paused) return true; // they paused: a late callback must not turn sharing back on
     const now = this.opts.now();
     if (now - m.lastPosAt < this.opts.minPosIntervalMs) return true; // silently throttle
     m.lastPosAt = now;
+    m.active = true;
     room.lastActive = now;
     const accuracy = typeof acc === 'number' && Number.isFinite(acc) && acc >= 0 ? Math.min(acc, 100_000) : null;
     m.player.pos = { lat, lng, acc: accuracy, at: now };
@@ -214,6 +230,8 @@ export class RoomRegistry {
     const m = room.members.get(id);
     if (!m) return;
     m.player.sharing = on;
+    m.paused = !on;
+    m.active = true;
     // Stopping sharing also forgets the last position so nobody keeps seeing it.
     if (!on) m.player.pos = null;
     room.lastActive = this.opts.now();
@@ -250,6 +268,7 @@ export class RoomRegistry {
     } else {
       return;
     }
+    m.active = true;
     room.lastActive = now;
     this.broadcast(room, { t: 'player', player: m.player });
   }
@@ -265,6 +284,7 @@ export class RoomRegistry {
     const now = this.opts.now();
     if (m.lastBubbleAt && now - m.lastBubbleAt < this.opts.bubbleCooldownMs) return this.tell(room, id, 'slow_down');
     m.lastBubbleAt = now;
+    m.active = true;
     room.lastActive = now;
     this.broadcast(room, { t: 'bubble', from: id, emoji: cleanText(emoji, BUBBLE_EMOJI_MAX) || '💭', text: clean, at: now });
   }
@@ -299,6 +319,7 @@ export class RoomRegistry {
       return null;
     }
     m.lastPlanAt = now;
+    m.active = true;
     room.lastActive = now;
     const plan: Plan = {
       id: randomId(6),
@@ -322,6 +343,7 @@ export class RoomRegistry {
     const plan = typeof planId === 'string' ? room.plans.get(planId) : undefined;
     if (!plan || !room.members.has(id) || plan.joined.includes(id)) return;
     plan.joined = [...plan.joined, id];
+    room.members.get(id)!.active = true;
     room.lastActive = this.opts.now();
     this.broadcast(room, { t: 'plan', plan });
   }
@@ -349,11 +371,12 @@ export class RoomRegistry {
     const m = room.members.get(id);
     if (!plan || !m || plan.by !== id) return false;
     const now = this.opts.now();
-    if (m.lastPingAt && now - m.lastPingAt < this.opts.pingCooldownMs) {
+    if ((m.lastPingAt && now - m.lastPingAt < this.opts.pingCooldownMs) || (room.lastPingAt && now - room.lastPingAt < this.opts.roomPingCooldownMs)) {
       this.tell(room, id, 'slow_down');
       return false;
     }
     m.lastPingAt = now;
+    room.lastPingAt = now;
     room.lastActive = now;
     this.broadcast(room, { t: 'ping', plan }, id);
     return true;
@@ -375,7 +398,7 @@ export class RoomRegistry {
     const now = this.opts.now();
     for (const room of this.rooms.values()) {
       for (const m of room.members.values()) {
-        if (m.offlineSince !== null && now - m.offlineSince > this.opts.offlineGraceMs) {
+        if (m.offlineSince !== null && (now - m.offlineSince > this.opts.offlineGraceMs || (!m.active && now - m.offlineSince > this.opts.ghostGraceMs))) {
           this.leave(room, m.player.id);
         }
       }

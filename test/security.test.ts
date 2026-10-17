@@ -5,17 +5,21 @@ import { once } from 'node:events';
 import { createServer as createNetServer, type AddressInfo } from 'node:net';
 import type { IncomingMessage } from 'node:http';
 import WebSocket from 'ws';
-import { ConnectionLimiter, MessageBucket, callerIp, hostKeyOk, originOk } from '../server/security.ts';
+import { ConnectionLimiter, MessageBucket, RateWindow, callerIp, hostKeyOk, originOk } from '../server/security.ts';
 
 const req = (remote: string, headers: Record<string, string> = {}) =>
   ({ socket: { remoteAddress: remote }, headers }) as unknown as IncomingMessage;
 
-test('X-Forwarded-For is believed only from a known proxy or from loopback', () => {
+test('X-Forwarded-For is believed only from a known proxy or from loopback, and only the entry the proxy wrote', () => {
   assert.equal(callerIp(req('203.0.113.9', { 'x-forwarded-for': '1.2.3.4' }), false), '203.0.113.9', 'remote client cannot forge it');
-  assert.equal(callerIp(req('127.0.0.1', { 'x-forwarded-for': '1.2.3.4, 10.0.0.1' }), false), '1.2.3.4', 'local proxy such as Tailscale');
+  assert.equal(callerIp(req('127.0.0.1', { 'x-forwarded-for': '1.2.3.4' }), false), '1.2.3.4', 'local proxy such as Tailscale');
   assert.equal(callerIp(req('::ffff:127.0.0.1', { 'x-forwarded-for': '5.6.7.8' }), false), '5.6.7.8');
   assert.equal(callerIp(req('10.1.1.1', { 'x-forwarded-for': '1.2.3.4' }), true), '1.2.3.4', 'declared proxy (Render)');
   assert.equal(callerIp(req('203.0.113.9'), false), '203.0.113.9');
+  // A client can put anything on the left; the proxy appends the real address on the right.
+  assert.equal(callerIp(req('127.0.0.1', { 'x-forwarded-for': '6.6.6.6, 1.2.3.4' }), false), '1.2.3.4', 'spoofed leftmost entry is ignored');
+  assert.equal(callerIp(req('10.1.1.1', { 'x-forwarded-for': '6.6.6.6, 1.2.3.4, 10.0.0.2' }), true, 2), '1.2.3.4', 'two trusted proxies in front');
+  assert.equal(callerIp(req('127.0.0.1', { 'x-forwarded-for': '' }), false), '127.0.0.1', 'empty header falls back to the socket');
 });
 
 test('host key: open when unset, exact match when set, no early exit on prefixes', () => {
@@ -31,13 +35,15 @@ test('host key: open when unset, exact match when set, no early exit on prefixes
 test('origin: same site passes, other sites and junk fail, no Origin (non-browser) passes', () => {
   const host = 'x.ts.net:8443';
   assert.equal(originOk(req('1.1.1.1', { host, origin: 'https://x.ts.net:8443' })), true);
-  assert.equal(originOk(req('1.1.1.1', { host, origin: 'https://x.ts.net' })), true, 'port differences on the same host are fine');
+  assert.equal(originOk(req('1.1.1.1', { host, origin: 'https://x.ts.net' })), false, 'another port of the same host is another site');
+  assert.equal(originOk(req('1.1.1.1', { host: 'x.ts.net', origin: 'https://x.ts.net:443' })), true, 'default ports are the same as no port');
   assert.equal(originOk(req('1.1.1.1', { host: 'localhost:8790', 'x-forwarded-host': 'x.ts.net', origin: 'https://x.ts.net' })), true, 'proxy that rewrites Host');
   assert.equal(originOk(req('1.1.1.1', { host, origin: 'https://evil.example' })), false);
   assert.equal(originOk(req('1.1.1.1', { host, origin: 'null' })), false);
   assert.equal(originOk(req('1.1.1.1', { host, origin: 'not a url' })), false);
   assert.equal(originOk(req('1.1.1.1', { host })), true);
-  assert.equal(originOk(req('1.1.1.1', { host, origin: 'https://other.example' }), ['other.example']), true, 'explicitly allowed');
+  assert.equal(originOk(req('1.1.1.1', { host, origin: 'https://other.example' }), ['other.example']), true, 'explicitly allowed host');
+  assert.equal(originOk(req('1.1.1.1', { host, origin: 'https://other.example' }), ['https://other.example']), true, 'explicitly allowed URL');
 });
 
 test('connection limiter caps per address and frees slots', () => {
@@ -49,6 +55,16 @@ test('connection limiter caps per address and frees slots', () => {
   assert.ok(l.acquire('a'));
   l.release('zzz'); // releasing something we never held must not go negative
   assert.ok(l.acquire('zzz'));
+});
+
+test('rate window allows N per window per key and frees up later', () => {
+  const w = new RateWindow(1000, 3);
+  for (let i = 0; i < 3; i++) assert.ok(w.allow('a', i));
+  assert.equal(w.allow('a', 10), false);
+  assert.ok(w.allow('b', 10), 'other keys are independent');
+  assert.ok(w.allow('a', 1500), 'old hits expired');
+  for (let i = 0; i < 6000; i++) w.allow(`k${i}`, 2000); // a flood of fake keys must not grow memory without bound
+  assert.ok(w.allow('z', 2000));
 });
 
 test('message bucket allows bursts, blocks floods, and refills', () => {
@@ -99,6 +115,8 @@ test('public-facing server: host key gates room creation, headers are set, origi
     assert.equal(name, 'Demo');
     const info = await fetch(`${base}/api/rooms/${id}`);
     assert.equal(info.status, 200, 'anyone with the link can look the event up');
+    const ver = (await (await fetch(`${base}/api/version`)).json()) as { build: string };
+    assert.ok(typeof ver.build === 'string' && ver.build.length > 0, 'server reports its build id');
     assert.equal(info.headers.get('x-content-type-options'), 'nosniff');
     assert.equal(info.headers.get('x-frame-options'), 'DENY');
     assert.match(info.headers.get('content-security-policy') ?? '', /frame-ancestors 'none'/);
@@ -173,6 +191,84 @@ test('a socket on a missing room, or one that never says hello, cannot crash the
     sockets.push(ok);
     await once(ok, 'open'); // still accepted, so no slot leaked
     assert.equal((await fetch(`${base}/api/health`)).status, 200);
+  } finally {
+    for (const ws of sockets) ws.terminate();
+    server.kill();
+    if (server.exitCode === null) await once(server, 'exit');
+  }
+});
+
+test('protocol-level garbage on a socket cannot kill the server: oversize frames, bad UTF-8, junk close', async () => {
+  const port = await freePort();
+  const server = spawn(process.execPath, ['server/index.ts'], {
+    env: { ...process.env, GMS_PORT: String(port), GMS_HOST: '127.0.0.1' },
+    stdio: ['ignore', 'ignore', 'pipe'],
+  });
+  let stderr = '';
+  server.stderr?.on('data', (d) => (stderr += d));
+  const base = `http://127.0.0.1:${port}`;
+  const sockets: WebSocket[] = [];
+  try {
+    let up = false;
+    for (let i = 0; i < 50 && !up && server.exitCode === null; i++) {
+      up = await fetch(`${base}/api/health`).then((r) => r.ok, () => false);
+      if (!up) await new Promise((r) => setTimeout(r, 100));
+    }
+    assert.ok(up, `server did not start: ${stderr}`);
+    const { id } = (await (await fetch(`${base}/api/rooms`, { method: 'POST' })).json()) as { id: string };
+    const attack = async (room: string, send: (ws: WebSocket) => void) => {
+      const ws = new WebSocket(`ws://127.0.0.1:${port}/ws?room=${room}`);
+      sockets.push(ws);
+      ws.on('error', () => {});
+      await once(ws, 'open');
+      send(ws);
+      await Promise.race([once(ws, 'close'), new Promise((r) => setTimeout(r, 800))]);
+    };
+    for (const room of [id, 'no-such-room']) {
+      await attack(room, (ws) => ws.send('x'.repeat(5000))); // over maxPayload
+      await attack(room, (ws) => ws.send(Buffer.from([0xff, 0xfe, 0xfd]), { binary: false })); // invalid UTF-8 in a text frame
+      await attack(room, (ws) => ws.send(Buffer.alloc(3000, 1))); // oversize binary
+    }
+    assert.equal(server.exitCode, null, `server died: ${stderr}`);
+    assert.equal((await fetch(`${base}/api/health`)).status, 200);
+    assert.equal((await fetch(`${base}/api/rooms`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: 'x'.repeat(5000) }) })).status, 413, 'oversize body is refused, not turned into a room');
+  } finally {
+    for (const ws of sockets) ws.terminate();
+    server.kill();
+    if (server.exitCode === null) await once(server, 'exit');
+  }
+});
+
+test('one invite holder cannot fill a room with ghosts by joining and dropping over and over', async () => {
+  const port = await freePort();
+  const server = spawn(process.execPath, ['server/index.ts'], {
+    env: { ...process.env, GMS_PORT: String(port), GMS_HOST: '127.0.0.1' },
+    stdio: ['ignore', 'ignore', 'pipe'],
+  });
+  let stderr = '';
+  server.stderr?.on('data', (d) => (stderr += d));
+  const base = `http://127.0.0.1:${port}`;
+  const sockets: WebSocket[] = [];
+  try {
+    let up = false;
+    for (let i = 0; i < 50 && !up && server.exitCode === null; i++) {
+      up = await fetch(`${base}/api/health`).then((r) => r.ok, () => false);
+      if (!up) await new Promise((r) => setTimeout(r, 100));
+    }
+    assert.ok(up, `server did not start: ${stderr}`);
+    const { id } = (await (await fetch(`${base}/api/rooms`, { method: 'POST' })).json()) as { id: string };
+    let refused = 0;
+    for (let i = 0; i < 75; i++) {
+      const ws = new WebSocket(`ws://127.0.0.1:${port}/ws?room=${id}`);
+      sockets.push(ws);
+      ws.on('error', () => {});
+      await once(ws, 'open');
+      ws.send(JSON.stringify({ t: 'hello', name: `g${i}`, avatar: '🦊', color: '#ff5d73' }));
+      const [code] = (await Promise.race([once(ws, 'close'), new Promise<[number]>((r) => setTimeout(() => (ws.terminate(), r([0])), 40))])) as [number];
+      if (code === 4030) refused++;
+    }
+    assert.ok(refused >= 10, `identity churn from one address is cut off (refused ${refused})`);
+    assert.equal(server.exitCode, null, `server died: ${stderr}`);
   } finally {
     for (const ws of sockets) ws.terminate();
     server.kill();
