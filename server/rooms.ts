@@ -8,6 +8,8 @@ import {
   BUBBLE_MAX,
   CONTACT_MAX,
   EVENT_NAME_MAX,
+  FAREWELL_MAX,
+  MAX_FAREWELLS_PER_ROOM,
   MAX_PLANS_PER_PLAYER,
   MOOD_EMOJI,
   MOOD_LABEL,
@@ -21,7 +23,7 @@ import {
   PLACE_MAX,
   PLAN_KINDS,
 } from '../shared/protocol.ts';
-import type { ErrorCode, MoodId, Plan, PlanKind, Player, ServerMsg } from '../shared/protocol.ts';
+import type { ErrorCode, Farewell, MoodId, Plan, PlanKind, Player, ServerMsg } from '../shared/protocol.ts';
 
 export interface Conn {
   send(msg: ServerMsg): void;
@@ -52,6 +54,8 @@ export interface Room {
   lastActive: number;
   members: Map<string, Member>;
   plans: Map<string, Plan>;
+  /** What people left on their way out, oldest first. */
+  farewells: Farewell[];
   /** Last ping from anyone, so re-joining as a new person does not reset the cooldown. */
   lastPingAt: number;
 }
@@ -138,7 +142,7 @@ export class RoomRegistry {
     if (this.rooms.size >= this.opts.maxRooms) return null;
     const now = this.opts.now();
     // 128 bits: unguessable, so the link itself is the only key to the room.
-    const room: Room = { id: randomId(16), name: cleanText(name, EVENT_NAME_MAX) || 'Our event', createdAt: now, lastActive: now, members: new Map(), plans: new Map(), lastPingAt: 0 };
+    const room: Room = { id: randomId(16), name: cleanText(name, EVENT_NAME_MAX) || 'Our event', createdAt: now, lastActive: now, members: new Map(), plans: new Map(), farewells: [], lastPingAt: 0 };
     this.rooms.set(room.id, room);
     return room;
   }
@@ -214,6 +218,7 @@ export class RoomRegistry {
       roomName: room.name,
       players: [...room.members.values()].map((m) => m.player),
       plans: [...room.plans.values()],
+      farewells: room.farewells,
       expiresIdleMs: this.opts.idleMs,
       now,
     });
@@ -256,9 +261,12 @@ export class RoomRegistry {
     this.broadcast(room, { t: 'player', player: m.player });
   }
 
-  /** Explicit leave: forget the player immediately. */
-  leave(room: Room, id: string) {
-    if (!room.members.delete(id)) return;
+  /** Explicit leave: forget the player immediately. A rating or parting message, if given, stays with the event. */
+  leave(room: Room, id: string, farewell?: { rating?: unknown; text?: unknown }) {
+    const gone = room.members.get(id);
+    if (!gone) return;
+    const note = farewell ? this.makeFarewell(gone.player, farewell) : null;
+    room.members.delete(id);
     room.lastActive = this.opts.now();
     this.broadcast(room, { t: 'left', id });
     // Their plans go with them, and they drop out of everyone else's.
@@ -272,6 +280,11 @@ export class RoomRegistry {
         plan.suggestions = plan.suggestions.filter((s) => s.by !== id);
         this.broadcast(room, { t: 'plan', plan });
       }
+    }
+    if (note) {
+      room.farewells.push(note);
+      if (room.farewells.length > MAX_FAREWELLS_PER_ROOM) room.farewells.shift();
+      this.broadcast(room, { t: 'farewell', farewell: note });
     }
   }
 
@@ -513,6 +526,14 @@ export class RoomRegistry {
     this.broadcast(room, { t: 'player', player: m.player });
   }
 
+  /** A farewell worth keeping has a whole star rating from 1 to 5, a message, or both. Anything else is dropped. */
+  private makeFarewell(p: Player, f: { rating?: unknown; text?: unknown }): Farewell | null {
+    const rating = typeof f.rating === 'number' && Number.isInteger(f.rating) && f.rating >= 1 && f.rating <= 5 ? f.rating : null;
+    const text = cleanText(f.text, FAREWELL_MAX);
+    if (rating === null && !text) return null;
+    return { id: randomId(6), name: p.name, avatar: p.avatar, rating, text, at: this.opts.now() };
+  }
+
   /** Drop stale players and idle rooms. Call periodically. */
   sweep() {
     const now = this.opts.now();
@@ -570,6 +591,7 @@ export class RoomRegistry {
           player: { ...m.player, pos: null, online: false },
         })),
         plans: [...room.plans.values()],
+        farewells: room.farewells,
       });
     }
     return { v: 1, savedAt: this.opts.now(), rooms };
@@ -622,6 +644,7 @@ interface SavedRoom {
   lastPingAt: number;
   members: SavedMember[];
   plans: Plan[];
+  farewells: Farewell[];
 }
 
 export interface Snapshot {
@@ -641,6 +664,27 @@ function restoreMood(v: unknown): Player['mood'] {
   return { id, emoji: cleanEmoji(v.emoji), label: cleanText(v.label, MOOD_TEXT_MAX), note: cleanText(v.note, NOTE_MAX), at: num(v.at, 0) };
 }
 
+function restoreFarewells(v: unknown): Farewell[] {
+  if (!Array.isArray(v)) return [];
+  const out: Farewell[] = [];
+  for (const f of v.slice(-MAX_FAREWELLS_PER_ROOM)) {
+    if (!isRecord(f)) continue;
+    const id = idOf(f.id);
+    const rating = typeof f.rating === 'number' && Number.isInteger(f.rating) && f.rating >= 1 && f.rating <= 5 ? f.rating : null;
+    const text = cleanText(f.text, FAREWELL_MAX);
+    if (!id || (rating === null && !text)) continue;
+    out.push({
+      id,
+      name: cleanName(f.name),
+      avatar: (AVATARS as readonly string[]).includes(f.avatar as string) ? (f.avatar as string) : AVATARS[0],
+      rating,
+      text,
+      at: num(f.at, 0),
+    });
+  }
+  return out;
+}
+
 function restoreRoom(r: unknown, savedAt: number): Room | null {
   if (!isRecord(r)) return null;
   const id = typeof r.id === 'string' && /^[\w-]{16,64}$/.test(r.id) ? r.id : null;
@@ -653,6 +697,7 @@ function restoreRoom(r: unknown, savedAt: number): Room | null {
     lastPingAt: num(r.lastPingAt, 0),
     members: new Map(),
     plans: new Map(),
+    farewells: restoreFarewells(r.farewells),
   };
   for (const m of r.members.slice(0, MAX_PLAYERS_PER_ROOM)) {
     if (!isRecord(m) || !isRecord(m.player)) continue;

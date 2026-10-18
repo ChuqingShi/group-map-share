@@ -5,12 +5,14 @@ import {
   MOOD_EMOJI,
   MOOD_TEXT_MAX,
   EVENT_NAME_MAX,
+  FAREWELL_MAX,
   NOTE_MAX,
   PLACE_MAX,
   PLAN_EMOJI,
   PLAN_KINDS,
   QUICK_EMOJI,
   BUBBLE_MAX,
+  type Farewell,
   type MoodId,
   type Plan,
   type PlanKind,
@@ -278,7 +280,7 @@ function RenameEvent({ eventName, canRename, onRename }: { eventName: string; ca
 
 // --- settings ---------------------------------------------------------------------
 
-export function SettingsSheet({ eventName, canRename, onRename, notif, notifCanAsk, onNotif, awake, awakeSupported, onAwake, voice, onVoice, sfx, onSfx, onLegend, onQuest, organizer, onOrganizer, leaveArmed, onLeave, onClose }: {
+export function SettingsSheet({ eventName, canRename, onRename, notif, notifCanAsk, onNotif, awake, awakeSupported, onAwake, voice, onVoice, sfx, onSfx, onLegend, onQuest, organizer, onOrganizer, farewells, onLeave, onClose }: {
   eventName: string;
   /** False when the event has an organizer and I am not one. */
   canRename: boolean;
@@ -298,7 +300,8 @@ export function SettingsSheet({ eventName, canRename, onRename, notif, notifCanA
   onQuest: () => void;
   organizer: boolean;
   onOrganizer: (on: boolean) => void;
-  leaveArmed: boolean;
+  /** What people left on their way out. */
+  farewells: Farewell[];
   onLeave: () => void;
   onClose: () => void;
 }) {
@@ -339,11 +342,104 @@ export function SettingsSheet({ eventName, canRename, onRename, notif, notifCanA
       </label>
       <button type="button" className="btn btn-ghost btn-big" data-testid="btn-legend" onClick={onLegend}>🗺️ Show the map legend</button>
       <button type="button" className="btn btn-ghost btn-big quest-replay" data-testid="btn-quest-replay" onClick={onQuest}>🧪 Replay the test mission</button>
-      <button type="button" className="btn btn-danger btn-big leave" data-testid="btn-leave" onClick={onLeave}>
-        {leaveArmed ? '🚪 Tap again to leave for good' : '🚪 Leave this event'}
-      </button>
+      <FarewellList farewells={farewells} />
+      <button type="button" className="btn btn-danger btn-big leave" data-testid="btn-leave" onClick={onLeave}>🚪 Leave this event</button>
       <p className="fineprint">Alerts and location only work while the app is open. Close it and your pin greys out, and your location is forgotten after 5 minutes. Pause sharing any time from the toolbar.</p>
     </Panel>
+  );
+}
+
+// --- farewells ------------------------------------------------------------------
+
+/** Filled and empty stars: ★★★★☆ */
+export const starText = (n: number) => '★'.repeat(n) + '☆'.repeat(5 - n);
+
+/** The average of the whole-star ratings, or null when nobody has rated. */
+export function averageRating(farewells: readonly Farewell[]): { average: number; count: number } | null {
+  const rated = farewells.filter((f) => f.rating !== null).map((f) => f.rating as number);
+  if (rated.length === 0) return null;
+  return { average: rated.reduce((a, b) => a + b, 0) / rated.length, count: rated.length };
+}
+
+/** What people said and rated on their way out, with the event's average. Hidden until someone has. */
+function FarewellList({ farewells }: { farewells: Farewell[] }) {
+  if (farewells.length === 0) return null;
+  const avg = averageRating(farewells);
+  const notes = farewells.filter((f) => f.text).slice().reverse();
+  return (
+    <section className="farewells" data-testid="farewell-summary" aria-label="Farewells">
+      <h3 className="farewell-head">👋 Farewells</h3>
+      {avg && (
+        <p className="farewell-avg" data-testid="farewell-average">
+          <span className="stars" aria-hidden="true">{starText(Math.round(avg.average))}</span> <b>{avg.average.toFixed(1)}</b> from {avg.count} rating{avg.count === 1 ? '' : 's'}
+        </p>
+      )}
+      {notes.length > 0 && (
+        <ul className="farewell-notes">
+          {notes.map((f) => (
+            <li key={f.id} data-testid="farewell-item">
+              <span className="farewell-who">{f.avatar} {f.name}</span>
+              {f.rating !== null && <span className="stars" aria-label={`${f.rating} stars`}> {starText(f.rating)}</span>}
+              <q>{f.text}</q>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+/** Before you go: rate the event and leave a parting message, both optional. Leaving is the one button that really leaves. */
+export function FarewellSheet({ eventName, onLeave, onStay }: {
+  eventName: string;
+  onLeave: (parting: { rating?: number; text?: string }) => void;
+  onStay: () => void;
+}) {
+  const [rating, setRating] = useState(0);
+  const [text, setText] = useState('');
+  const clean = text.trim();
+  return (
+    <section className="sheet panel farewell-sheet" data-testid="farewell-sheet">
+      <header className="panel-head">
+        <h2>Before you go 👋</h2>
+        <button type="button" className="btn-icon" aria-label="Close" onClick={onStay}>✕</button>
+      </header>
+      <p className="suggest">How was <b>{eventName}</b>? Both are optional.</p>
+      <div className="star-row" role="group" aria-label="Rate the event">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button
+            key={n}
+            type="button"
+            className={`star ${n <= rating ? 'is-on' : ''}`}
+            data-testid={`star-${n}`}
+            aria-label={`${n} star${n === 1 ? '' : 's'}`}
+            aria-pressed={n <= rating}
+            onClick={() => setRating(n === rating ? 0 : n)}
+          >
+            {n <= rating ? '★' : '☆'}
+          </button>
+        ))}
+      </div>
+      <label className="field">
+        Leave a parting message
+        <textarea
+          data-testid="farewell-text"
+          value={text}
+          maxLength={FAREWELL_MAX}
+          rows={3}
+          placeholder="Thanks for a great day!"
+          onChange={(e) => setText(e.target.value)}
+        />
+        <span className="count">{[...text].length}/{FAREWELL_MAX}</span>
+      </label>
+      <p className="fineprint">Leaving erases your pin and flags. A rating or message you leave stays with the event, with your name, until it ends.</p>
+      <div className="controls">
+        <button type="button" className="btn btn-danger btn-big" data-testid="btn-farewell-leave" onClick={() => onLeave({ rating: rating || undefined, text: clean || undefined })}>
+          🚪 {rating || clean ? 'Leave with this' : 'Leave for good'}
+        </button>
+        <button type="button" className="btn btn-ghost btn-big" data-testid="btn-farewell-stay" onClick={onStay}>Stay</button>
+      </div>
+    </section>
   );
 }
 

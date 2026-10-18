@@ -80,13 +80,16 @@ scenario('9c. event: leaving (two taps) removes me and my plans for others, forg
   await createPlan(ann, { kind: 'coffee', place: 'Blue Bottle', ping: false });
   await eventually(async () => assert.equal(await bob.tid('plan-x').count(), 1), { message: 'Bob sees the plan' });
 
-  // The first tap only arms the button.
+  // The first tap only opens the farewell sheet; Stay backs out, and only its Leave button leaves.
   await openSettings(ann);
-  const leave = ann.tid('btn-leave');
-  await leave.click();
-  assert.match(((await leave.getAttribute('aria-label')) ?? '') + ((await leave.textContent()) ?? ''), /sure|again/i, 'first tap arms the button');
+  await ann.tid('btn-leave').click();
+  await ann.tid('farewell-sheet').waitFor({ state: 'visible' });
   assert.ok(!ann.sent.some((m) => m.t === 'leave'), 'one tap does not leave');
-  await leave.click();
+  await ann.tid('btn-farewell-stay').click();
+  await ann.tid('farewell-sheet').waitFor({ state: 'hidden' });
+  assert.ok(!ann.sent.some((m) => m.t === 'leave'), 'staying does not leave');
+  await ann.tid('btn-leave').click();
+  await ann.tid('btn-farewell-leave').click();
 
   await eventually(() => assert.ok(bob.received.some((m) => m.t === 'left' && m.id === ann.id)), { message: 'Bob is told Ann left' });
   await waitForCrew(bob, 1);

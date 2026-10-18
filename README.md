@@ -25,6 +25,8 @@ Contact info on your card is entirely optional.
 - **Say no thanks or suggest something else** on any invitation.
 - **Talk.** Say "let's go eat at Joe's Tacos": a thought bubble, your mood, and a flag if the place is on the map.
 - **Cards.** Tap anyone's picture or name for their mood, optional contact line and flags. You can edit your own.
+- **Farewells.** Leaving offers a star rating and a parting message, both optional. The crew sees them as they go, and the
+  event keeps an average and the messages for anyone who joins later.
 - **Organizers.** Tick "I'm an organizer" when you join; while anyone has, only organizers plant flags or rename the event.
 - Sound effects, notifications, keep-screen-on and a built-in test mission, all in Settings.
 
@@ -77,7 +79,7 @@ Add `?sim` to a URL to fake GPS (`?sim=LAT,LNG` to start elsewhere); open two wi
 ```bash
 npm run typecheck
 npm test        # unit and server tests
-npm run e2e     # builds, then 33 scenes in two phone-sized Chromes (about two minutes)
+npm run e2e     # builds, then 35 scenes in two phone-sized Chromes (about two minutes)
 ```
 
 Phones need HTTPS for location; `localhost` counts. On iPhone, add the page to the Home Screen for notifications.
@@ -85,7 +87,8 @@ Phones need HTTPS for location; `localhost` counts. On iPhone, add the page to t
 ## Privacy and security
 
 - Server memory only by default: moods, flags, positions and contact lines vanish on restart, 3 hours after the last person
-  leaves, and when you leave. Close the app and your location is forgotten after 5 minutes.
+  leaves, and when you leave. Close the app and your location is forgotten after 5 minutes. The one thing that outlives you is
+  a rating or parting message you choose to leave: it stays with the event, with your name, until the event ends.
 - If the host sets `GMS_DATA_DIR`, events (names, moods, contact lines, flags, resume tokens) are also saved to a private
   file there so a redeploy does not end them. Locations are never saved.
 - On your device: your events, name, character, optional contact line, recent moods and settings.

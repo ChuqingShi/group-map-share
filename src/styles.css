@@ -305,7 +305,7 @@ h1 {
 .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
 .panel-head h2 { margin: 0; }
 .panel .field { display: grid; gap: 6px; margin: 0 0 12px; font-family: var(--head); font-weight: 900; text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.8rem; }
-.panel input[type='text'], .panel input:not([type]) {
+.panel input[type='text'], .panel input:not([type]), .panel textarea {
   font: inherit; font-family: var(--body); font-size: 1.05rem; padding: 10px 12px; border: 3px solid var(--ink); border-radius: 0;
   background: var(--cream); text-transform: none; letter-spacing: 0; color: var(--ink); width: 100%;
 }
@@ -514,3 +514,23 @@ button, summary, [role='button'], .pin, .xmark, .player {
 .suggestions { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .suggestion { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px; border: 2px dashed var(--ink); background: #fff; font-size: 0.9rem; line-height: 1.3; }
 .toast-actions { flex-wrap: wrap; }
+
+/* ---------- farewells ---------- */
+.panel textarea { resize: none; line-height: 1.35; }
+.star-row { display: flex; gap: 6px; justify-content: center; margin: 8px 0 16px; }
+.star {
+  width: 54px; height: 54px; padding: 0; font-size: 2rem; line-height: 1; border: 3px solid var(--ink); border-radius: 0;
+  background: var(--cream); color: var(--ink); box-shadow: 3px 3px 0 var(--ink); touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.star.is-on { background: var(--gold); transform: rotate(-3deg); }
+.star:active { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--ink); }
+.field .count { justify-self: end; font: 700 0.75rem var(--body); letter-spacing: 0; text-transform: none; opacity: 0.8; }
+.farewell-sheet .controls { display: grid; gap: 8px; margin-top: 12px; }
+.farewells { margin: 12px 0 4px; padding: 8px 10px; border: 3px solid var(--ink); background: var(--cream); }
+.farewell-head { margin: 0 0 4px; font: 900 0.8rem var(--head); letter-spacing: 0.12em; text-transform: uppercase; }
+.farewell-avg { margin: 0 0 6px; }
+.stars { color: #b8770b; letter-spacing: 0.08em; }
+.farewell-notes { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 24vh; overflow-y: auto; }
+.farewell-notes li { font-size: 0.92rem; overflow-wrap: anywhere; }
+.farewell-notes q { display: block; font-style: italic; }
+.farewell-who { font-weight: 900; font-family: var(--head); letter-spacing: 0.04em; }

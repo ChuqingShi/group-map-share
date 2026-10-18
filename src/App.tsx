@@ -10,7 +10,7 @@ import { useGeolocation, type GeoError } from './useGeolocation.ts';
 import { requestLocation, saveStart, savedStart } from './startLocation.ts';
 import { store } from './safeStorage.ts';
 import { CrewStrip, Toasts, type ToastItem } from './Crew.tsx';
-import { DropBanner, MoodSheet, PlanForm, PlansPanel, SettingsSheet, SuggestSheet, TalkSheet, type PlanInput, type TalkPlant } from './Meetups.tsx';
+import { DropBanner, FarewellSheet, MoodSheet, PlanForm, PlansPanel, SettingsSheet, SuggestSheet, TalkSheet, starText, type PlanInput, type TalkPlant } from './Meetups.tsx';
 import { PersonCard } from './PersonCard.tsx';
 import { PlaceCard } from './PlaceCard.tsx';
 import type { FoundPlace } from './places.ts';
@@ -198,7 +198,7 @@ function Landing({ onCreated, onOpen, autoResume: resumeFirst }: { onCreated: (i
           {busy ? 'Creating…' : '🎮 Create a room'}
         </button>
         {err && <p className="error">{err}</p>}
-        <p className="fineprint">Your location is only shared while the app is open. It is never saved to disk, is forgotten 5 minutes after you close the app, and you are erased when you leave. Events vanish after 3 hours with nobody in them.</p>
+        <p className="fineprint">Your location is only shared while the app is open. It is never saved to disk, is forgotten 5 minutes after you close the app, and you are erased when you leave, apart from a goodbye you choose to leave. Events vanish after 3 hours with nobody in them.</p>
       </div>
     </div>
   );
@@ -219,7 +219,7 @@ const loadProfile = (): Profile => {
   };
 };
 
-type Panel = null | 'mood' | 'plans' | 'talk' | 'settings' | 'quest' | 'card' | 'suggest' | 'place';
+type Panel = null | 'mood' | 'plans' | 'talk' | 'settings' | 'quest' | 'card' | 'suggest' | 'place' | 'farewell';
 type PlanStep = null | 'drop' | 'form';
 interface Bubble { emoji: string; text: string; at: number }
 
@@ -258,7 +258,6 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
   const [suggestId, setSuggestId] = useState<string | null>(null);
   const [voice, setVoice] = useState(voiceOn);
   const [sfx, setSfx] = useState(sfxOn);
-  const [leaveArmed, setLeaveArmed] = useState(false);
   const [notifOn, setNotifOn] = useState(notifyEnabled);
   const [awake, setAwake] = useState(keepAwakeOn);
   const mapRef = useRef<MapHandle>(null);
@@ -524,22 +523,29 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
     store.set(PROFILE_KEY, JSON.stringify({ ...loadProfile(), name, contact }));
   };
   const cardPlayer = cardId ? room.players[cardId] : undefined;
-  const leaveTap = () => {
-    if (leaveArmed) {
-      // Leaving needs the server to hear it, or your pin and flags would stay behind for hours.
-      if (!room.leave()) {
-        pushToast({ kind: 'info', emoji: '📶', text: 'You are offline right now. Reconnect, then tap Leave again so you are really removed.' });
-        setLeaveArmed(false);
-        return;
-      }
-      playSfx('leave');
-      quest.done('leave');
-      void clearNotifications();
+  /** Leave for good, with an optional rating and parting message that stay with the event. */
+  const finishLeave = (parting: { rating?: number; text?: string }) => {
+    // Leaving needs the server to hear it, or your pin and flags would stay behind for hours.
+    if (!room.leave(parting)) {
+      pushToast({ kind: 'info', emoji: '📶', text: 'You are offline right now. Reconnect, then tap Leave again so you are really removed.' });
+      setPanel(null);
       return;
     }
-    setLeaveArmed(true);
-    setTimeout(() => setLeaveArmed(false), 3_000);
+    playSfx('leave');
+    quest.done('leave');
+    void clearNotifications();
   };
+
+  // Somebody said goodbye on the way out: show what they left.
+  const lastFarewell = useRef(0);
+  useEffect(() => {
+    const ev = room.farewell;
+    if (!ev || ev.seq === lastFarewell.current) return;
+    lastFarewell.current = ev.seq;
+    const f = ev.farewell;
+    const parts = [f.rating !== null ? starText(f.rating) : '', f.text ? `“${f.text}”` : ''].filter(Boolean).join(' ');
+    pushToast({ kind: 'info', emoji: '👋', text: `${f.avatar} ${f.name} left. ${parts}` }, 9_000);
+  }, [room.farewell]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** One tap: remember the event, ask for permissions, ask for location, show the map. */
   const join = async (p: Profile) => {
@@ -669,6 +675,8 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
           onLeave={(id) => room.send({ t: 'plan_leave', id })}
           onSave={saveMyCard}
         />
+      ) : panel === 'farewell' ? (
+        <FarewellSheet eventName={room.roomName || 'this event'} onLeave={finishLeave} onStay={() => setPanel('settings')} />
       ) : panel === 'place' && placeCard ? (
         <PlaceCard
           place={placeCard}
@@ -715,8 +723,8 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
           onQuest={() => { quest.start(); setPanel('quest'); }}
           organizer={!!meP?.organizer}
           onOrganizer={changeOrganizer}
-          leaveArmed={leaveArmed}
-          onLeave={leaveTap}
+          farewells={room.farewells}
+          onLeave={() => setPanel('farewell')}
           onClose={() => setPanel(null)}
         />
       ) : panel === 'quest' && quest.state ? (

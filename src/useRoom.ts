@@ -1,7 +1,7 @@
 // WebSocket connection to a room: keeps the player list in sync and
 // reconnects (resuming the same player via a session token) after drops.
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ClientMsg, ErrorCode, Plan, Player, ServerMsg } from '../shared/protocol.ts';
+import type { ClientMsg, ErrorCode, Farewell, Plan, Player, ServerMsg } from '../shared/protocol.ts';
 
 export type RoomStatus = 'idle' | 'connecting' | 'live' | 'reconnecting' | 'no_room' | 'room_full' | 'replaced' | 'left';
 
@@ -39,6 +39,12 @@ export interface BubbleEvent {
   seq: number;
 }
 
+/** Somebody left a rating or a parting message on the way out. `seq` changes on every one. */
+export interface FarewellEvent {
+  farewell: Farewell;
+  seq: number;
+}
+
 export function useRoom(roomId: string, profile: Profile | null) {
   const [status, setStatus] = useState<RoomStatus>('idle');
   const [roomName, setRoomName] = useState('');
@@ -47,6 +53,8 @@ export function useRoom(roomId: string, profile: Profile | null) {
   const [ping, setPing] = useState<PingEvent | null>(null);
   const [bubble, setBubble] = useState<BubbleEvent | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [farewells, setFarewells] = useState<Farewell[]>([]);
+  const [farewell, setFarewell] = useState<FarewellEvent | null>(null);
   const pingSeq = useRef(0);
   const [me, setMe] = useState<string | null>(null);
   /** Local clock minus server clock, to turn server timestamps into "x s ago". */
@@ -90,6 +98,7 @@ export function useRoom(roomId: string, profile: Profile | null) {
             setMe(msg.you);
             setPlayers(Object.fromEntries(msg.players.map((p) => [p.id, p])));
             setPlans(Object.fromEntries(msg.plans.map((p) => [p.id, p])));
+            setFarewells(msg.farewells ?? []);
             setStatus('live');
             break;
           case 'player':
@@ -121,6 +130,10 @@ export function useRoom(roomId: string, profile: Profile | null) {
             break;
           case 'ping':
             setPing({ plan: msg.plan, seq: ++pingSeq.current });
+            break;
+          case 'farewell':
+            setFarewells((fs) => [...fs, msg.farewell]);
+            setFarewell({ farewell: msg.farewell, seq: ++pingSeq.current });
             break;
           case 'bubble':
             setBubble({ from: msg.from, emoji: msg.emoji, text: msg.text, at: msg.at, seq: ++pingSeq.current });
@@ -160,10 +173,10 @@ export function useRoom(roomId: string, profile: Profile | null) {
   }, []);
 
   /** Returns false (and changes nothing) when we are not connected, because then the server would never hear it. */
-  const leave = useCallback((): boolean => {
+  const leave = useCallback((parting?: { rating?: number; text?: string }): boolean => {
     if (wsRef.current?.readyState !== WebSocket.OPEN) return false;
     stoppedRef.current = true;
-    send({ t: 'leave' });
+    send({ t: 'leave', ...(parting?.rating ? { rating: parting.rating } : {}), ...(parting?.text ? { text: parting.text } : {}) });
     forgetEvent(roomId); // leaving erases the event here; the server drops our pin and flags
     setStatus('left');
     setPlayers({});
@@ -175,5 +188,5 @@ export function useRoom(roomId: string, profile: Profile | null) {
 
   const clearNotice = useCallback(() => setNotice(null), []);
 
-  return { status, roomName, players, plans, ping, bubble, notice, clearNotice, me, clockOffset, send, leave };
+  return { status, roomName, players, plans, farewells, farewell, ping, bubble, notice, clearNotice, me, clockOffset, send, leave };
 }

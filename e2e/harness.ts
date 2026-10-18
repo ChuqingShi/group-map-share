@@ -736,19 +736,14 @@ export async function crewIds(p: Player): Promise<string[]> {
   return p.tid('crew-avatar').evaluateAll((els) => els.map((e) => e.getAttribute('data-player-id') ?? ''));
 }
 
-/** Leave the room from the settings window. The first tap only arms the button ("Tap again to leave"), the second one leaves. */
-export async function leaveRoom(p: Player): Promise<void> {
+/** Leave the room from the settings window: Leave this event opens the farewell sheet, and its Leave button really leaves. */
+export async function leaveRoom(p: Player, parting?: { rating?: number; text?: string }): Promise<void> {
   await openSettings(p);
-  const btn = (await p.tid('btn-leave').count()) > 0 ? p.tid('btn-leave') : p.page.locator('button', { hasText: 'Leave' }).first();
-  await btn.click();
-  await sleep(150);
-  for (let i = 0; i < 2; i++) {
-    if (!(await btn.isVisible())) return;
-    const label = ((await btn.getAttribute('aria-label', { timeout: 1000 })) ?? '') + ((await btn.textContent({ timeout: 1000 })) ?? '');
-    if (!/again|sure|confirm/i.test(label)) return;
-    await btn.click();
-    await sleep(150);
-  }
+  await p.tid('btn-leave').click();
+  await p.tid('farewell-sheet').waitFor({ state: 'visible' });
+  if (parting?.rating) await p.tid(`star-${parting.rating}`).click();
+  if (parting?.text) await p.tid('farewell-text').fill(parting.text);
+  await p.tid('btn-farewell-leave').click();
 }
 
 /** Current state of a checkbox or aria-pressed / aria-checked toggle. */
@@ -780,7 +775,14 @@ export async function closeSheet(p: Player, sheet: string): Promise<void> {
   const root = p.tid(sheet);
   const scoped = root.locator('[aria-label="Close"]');
   const close = (await scoped.count()) > 0 ? scoped.first() : p.page.locator('[aria-label="Close"]').first();
-  await close.click();
+  try {
+    await close.click({ timeout: 2000 });
+  } catch {
+    // A toast (for example a ping that just arrived) can sit over the sheet's Close button: swipe the toasts away, then close.
+    const dismiss = p.page.locator('.toast-x');
+    for (let i = 0; i < 6 && (await dismiss.count()) > 0; i++) await dismiss.first().click({ timeout: 2000 }).catch(() => {});
+    await close.click();
+  }
   await root.waitFor({ state: 'hidden' });
 }
 

@@ -273,7 +273,7 @@ wss.on('connection', (ws: WebSocket, req) => {
     else if (msg.t === 'plan_ping') registry.pingPlan(room, me, msg.id);
     else if (msg.t === 'bubble') registry.say(room, me, msg.emoji, msg.text);
     else if (msg.t === 'leave') {
-      registry.leave(room, me);
+      registry.leave(room, me, msg);
       me = null;
       left = true;
       ws.close(1000, 'left');

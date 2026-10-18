@@ -7,6 +7,9 @@ export const NAME_MAX = 24;
 /** A line of contact info on someone's card: a phone number, an email, "find me by the fountain". */
 export const CONTACT_MAX = 80;
 export const EVENT_NAME_MAX = 40;
+/** A parting message, and how many farewells an event keeps. */
+export const FAREWELL_MAX = 140;
+export const MAX_FAREWELLS_PER_ROOM = 100;
 export const MAX_PLAYERS_PER_ROOM = 50;
 
 // --- moods and meetup plans ------------------------------------------------
@@ -111,6 +114,19 @@ export interface Plan {
   createdAt: number;
 }
 
+/** What someone left behind when they went: a star rating, a parting message, or both. It outlives the person, with their name. */
+export interface Farewell {
+  id: string;
+  name: string;
+  avatar: string;
+  /** 1 to 5 stars, or null when they only left a message. */
+  rating: number | null;
+  /** Empty when they only left a rating. */
+  text: string;
+  /** Server time (ms since epoch). */
+  at: number;
+}
+
 // --- players -----------------------------------------------------------------
 
 export interface Position {
@@ -151,7 +167,8 @@ export type ClientMsg =
   | { t: 'organizer'; on: boolean }
   | { t: 'pos'; lat: number; lng: number; acc?: number | null }
   | { t: 'sharing'; on: boolean }
-  | { t: 'leave' }
+  /** Leave for good. A rating (1 to 5) and a parting message are optional and stay with the event. */
+  | { t: 'leave'; rating?: number; text?: string }
   /** A preset (`mood` is its id), a typed one (`mood: 'custom'` with `emoji` and `text`), or null to clear. */
   | { t: 'mood'; mood: MoodId | 'custom' | null; note?: string; emoji?: string; text?: string }
   /** Create a plan. With `ping`, everyone else in the room gets a spoken invitation. */
@@ -172,9 +189,11 @@ export type ClientMsg =
 export type ErrorCode = 'no_room' | 'room_full' | 'bad_message' | 'slow_down' | 'plan_limit' | 'bad_plan' | 'organizers_only';
 
 export type ServerMsg =
-  | { t: 'welcome'; you: string; token: string; roomName: string; players: Player[]; plans: Plan[]; expiresIdleMs: number; now: number }
+  | { t: 'welcome'; you: string; token: string; roomName: string; players: Player[]; plans: Plan[]; farewells: Farewell[]; expiresIdleMs: number; now: number }
   | { t: 'player'; player: Player }
   | { t: 'left'; id: string }
+  /** Someone left a rating or a parting message on the way out. */
+  | { t: 'farewell'; farewell: Farewell }
   /** Create or update a plan. */
   | { t: 'plan'; plan: Plan }
   | { t: 'plan_gone'; id: string }
