@@ -216,6 +216,19 @@ h1 {
 
 .maplibregl-ctrl-bottom-right { bottom: calc(max(15px, env(safe-area-inset-bottom)) + 96px); }
 .room.names-open .maplibregl-ctrl-bottom-right { bottom: calc(max(15px, env(safe-area-inset-bottom)) + min(32vh, 205px) + 104px); }
+.compass-ctrl { float: none; margin: 0 10px 10px 0 !important; }
+.compass-btn {
+  position: relative; width: 56px; height: 56px; padding: 0; border-radius: 50%; border: 3px solid var(--ink);
+  background: var(--cream); color: var(--ink); box-shadow: var(--pop); display: grid; place-items: center; cursor: pointer;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none;
+}
+.compass-btn:active { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--ink); }
+.compass-btn.is-turned { background: var(--gold); }
+.compass-rose { display: grid; place-items: center; width: 40px; height: 40px; transition: transform 0.1s linear; }
+.compass-n {
+  position: absolute; top: -13px; left: 50%; transform: translateX(-50%); padding: 0 5px; background: var(--ink); color: var(--cream);
+  font: 900 0.7rem var(--head); letter-spacing: 0.05em; line-height: 1.5; border-radius: 6px;
+}
 .maplibregl-ctrl-group { border: 3px solid var(--ink) !important; border-radius: 0 !important; box-shadow: var(--pop) !important; }
 
 /* ---------- crew strip (names collapsed into round profile pics) ---------- */

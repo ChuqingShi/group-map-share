@@ -1,4 +1,4 @@
-// Scenario 18: everybody going to dinner can open the restaurant in Google Maps, from the ping, the plans list and the person card.
+// Scenarios 18 and 20: map links for a dinner flag (ping, plans list, person card), and the compass.
 import assert from 'node:assert/strict';
 import { SPOTS, createPlan, eventually, openPlans, closeSheet, setup, toast, waitForCrew } from './harness.ts';
 
@@ -45,4 +45,33 @@ scenario('18. a flag has a Google Maps link in the ping, the plans list and the 
 
   // Nothing went to Google on its own: links only load when tapped.
   assert.deepEqual(toGoogle, []);
+});
+
+scenario('20. the compass shows where north is, and a tap turns the map north, then flattens and tilts it', async (s) => {
+  const ann = await s.player('Ann', SPOTS.ann);
+  await waitForCrew(ann, 1);
+  const north = ann.tid('btn-north');
+  const read = async () => ({ bearing: Number(await north.getAttribute('data-bearing')), pitch: Number(await north.getAttribute('data-pitch')) });
+  await eventually(async () => assert.equal((await read()).pitch, 45), { message: 'the map starts tilted and north-up' });
+  assert.equal((await read()).bearing, 0);
+  assert.doesNotMatch((await north.getAttribute('class')) ?? '', /is-turned/);
+
+  // Twist the map like a stray two-finger gesture would (shift+arrow is MapLibre's keyboard rotate).
+  await ann.page.locator('.maplibregl-canvas').focus();
+  await ann.page.keyboard.press('Shift+ArrowLeft');
+  for (let i = 0; i < 12; i++) await ann.page.keyboard.press('Shift+ArrowLeft');
+  await eventually(async () => assert.notEqual((await read()).bearing, 0), { message: 'the map turned' });
+  assert.match((await north.getAttribute('class')) ?? '', /is-turned/, 'the compass lights up while the map is turned');
+  assert.equal(await north.getAttribute('aria-label'), 'Point the map north');
+
+  await north.click();
+  await eventually(async () => assert.equal((await read()).bearing, 0), { message: 'facing north again' });
+  assert.equal((await read()).pitch, 45, 'tilt is kept');
+  assert.doesNotMatch((await north.getAttribute('class')) ?? '', /is-turned/);
+
+  await north.click(); // already north: flatten
+  await eventually(async () => assert.equal((await read()).pitch, 0), { message: 'flat top-down view' });
+  await north.click(); // and back to the tilted one
+  await eventually(async () => assert.equal((await read()).pitch, 45), { message: 'tilted again' });
+  ann.assertNoErrors();
 });

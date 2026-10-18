@@ -5,6 +5,7 @@ import './map-extras.css';
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import { PLAN_EMOJI, type Plan, type Player } from '../shared/protocol.ts';
 import { gameStyle, installPatterns } from './mapStyle.ts';
+import { CompassControl } from './CompassControl.ts';
 import { fallbackView } from './startLocation.ts';
 import { KIND_LABEL, moodEmoji, moodText } from './meetup.ts';
 import { findByName, nearestPoi, poiKind, toFound, type FoundPlace, type Poi } from './places.ts';
@@ -517,7 +518,8 @@ export default function MapView({ players, me, start, ref, plans, selectedPlan, 
       attributionControl: { compact: true },
     });
     installPatterns(map);
-    map.addControl(new maplibregl.NavigationControl({ showCompass: true, visualizePitch: true }), 'bottom-right');
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
+    map.addControl(new CompassControl(), 'bottom-right');
     mapRef.current = map;
     // Compact attribution starts expanded; fold it so it doesn't cover the HUD on phones.
     map.once('load', () => containerRef.current?.querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show'));
