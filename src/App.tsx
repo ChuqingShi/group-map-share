@@ -198,7 +198,7 @@ function Landing({ onCreated, onOpen, autoResume: resumeFirst }: { onCreated: (i
           {busy ? 'Creating…' : '🎮 Create a room'}
         </button>
         {err && <p className="error">{err}</p>}
-        <p className="fineprint">Your location is only shared while the app is open. The server keeps it in memory only, forgets it 5 minutes after you close the app, and erases you when you leave. Events vanish after 3 hours with nobody in them.</p>
+        <p className="fineprint">Your location is only shared while the app is open. It is never saved to disk, is forgotten 5 minutes after you close the app, and you are erased when you leave. Events vanish after 3 hours with nobody in them.</p>
       </div>
     </div>
   );
