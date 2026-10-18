@@ -29,6 +29,9 @@ export function poiKind(cls: string, subclass: string | undefined, hour: number)
   return 'meetup';
 }
 
+/** Every OpenMapTiles class or subclass that means somewhere to eat, drink or get coffee. */
+export const EAT_CLASSES: readonly string[] = [...DRINKS, ...COFFEE, ...FOOD];
+
 const STOP = new Set(['the', 'a', 'an', 'at', 'of', 'and', 'restaurant', 'cafe', 'bar', 'grill', 'kitchen', 'house']);
 
 /** "Joe's Tacos & Tequila" becomes ["joes", "tacos", "tequila"]: no accents, apostrophes or punctuation, and no filler words. */

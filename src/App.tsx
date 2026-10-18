@@ -12,10 +12,12 @@ import { store } from './safeStorage.ts';
 import { CrewStrip, Toasts, type ToastItem } from './Crew.tsx';
 import { DropBanner, MoodSheet, PlanForm, PlansPanel, SettingsSheet, SuggestSheet, TalkSheet, type PlanInput, type TalkPlant } from './Meetups.tsx';
 import { PersonCard } from './PersonCard.tsx';
+import { PlaceCard } from './PlaceCard.tsx';
+import type { FoundPlace } from './places.ts';
 import { FlagButton } from './FlagDrag.tsx';
 import type { Feeling } from './bubble.ts';
 import { QuestChip, QuestIntro, QuestPanel, useQuest, type QuestApi } from './Quest.tsx';
-import { announcement, metresTo, moodEmoji, moodText } from './meetup.ts';
+import { announcement, mapsLink, metresTo, moodEmoji, moodText } from './meetup.ts';
 import { playSfx, setSfxOn, sfxOn, unlockSfx } from './sfx.ts';
 import { buzz, setVoiceOn, speak, unlockVoice, voiceOn } from './voice.ts';
 import { clearNotifications, disableNotifications, enableNotifications, notifyEnabled, notifyPermission, showLocal } from './notify.ts';
@@ -217,7 +219,7 @@ const loadProfile = (): Profile => {
   };
 };
 
-type Panel = null | 'mood' | 'plans' | 'talk' | 'settings' | 'quest' | 'card' | 'suggest';
+type Panel = null | 'mood' | 'plans' | 'talk' | 'settings' | 'quest' | 'card' | 'suggest' | 'place';
 type PlanStep = null | 'drop' | 'form';
 interface Bubble { emoji: string; text: string; at: number }
 
@@ -248,6 +250,7 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
   const [planStep, setPlanStep] = useState<PlanStep>(null);
   const [planSeed, setPlanSeed] = useState<{ kind?: PlanKind; place?: string } | null>(null);
   const [draft, setDraft] = useState<LatLng | null>(null);
+  const [placeCard, setPlaceCard] = useState<FoundPlace | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [bubbles, setBubbles] = useState<Record<string, Bubble>>({});
   const [toasts, setToasts] = useState<ToastItem[]>([]);
@@ -372,7 +375,7 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
     const { plan } = ev;
     const b = planBubble(plan);
     showBubble(plan.by, b.emoji, b.text);
-    pushToast({ kind: 'ping', emoji: b.emoji, text: `${plan.byName}: ${b.text}`, who: room.players[plan.by], planId: plan.id }, 10_000);
+    pushToast({ kind: 'ping', emoji: b.emoji, text: `${plan.byName}: ${b.text}`, who: room.players[plan.by], planId: plan.id, mapHref: mapsLink(plan) }, 10_000);
     setSelectedPlan(plan.id); // shows the dotted trail from me to the flag
     if (plan.by !== room.me) playSfx('ping');
     buzz();
@@ -579,6 +582,7 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
         onDrop={(p) => { setDraft(p); setPlanStep('form'); }}
         onPlanClick={(id) => { setSelectedPlan(id); setPanel('plans'); }}
         onPinClick={openCard}
+        onPlaceTap={(p) => { if (planStep !== null) return; setPlaceCard(p); setPanel('place'); }}
         bubbles={bubbles}
       />
 
@@ -664,6 +668,19 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
           onJoin={(id) => { room.send({ t: 'plan_join', id }); playSfx('imin'); setSelectedPlan(id); }}
           onLeave={(id) => room.send({ t: 'plan_leave', id })}
           onSave={saveMyCard}
+        />
+      ) : panel === 'place' && placeCard ? (
+        <PlaceCard
+          place={placeCard}
+          mePos={mePos}
+          canPlant={canPlant}
+          onPlant={() => {
+            setDraft({ lat: placeCard.lat, lng: placeCard.lng });
+            setPlanSeed({ kind: placeCard.kind, place: placeCard.name });
+            setPanel(null);
+            setPlanStep('form');
+          }}
+          onClose={() => setPanel(null)}
         />
       ) : panel === 'suggest' && suggestId && room.plans[suggestId] ? (
         <SuggestSheet

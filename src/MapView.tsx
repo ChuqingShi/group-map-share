@@ -7,7 +7,7 @@ import { PLAN_EMOJI, type Plan, type Player } from '../shared/protocol.ts';
 import { gameStyle, installPatterns } from './mapStyle.ts';
 import { fallbackView } from './startLocation.ts';
 import { KIND_LABEL, moodEmoji, moodText } from './meetup.ts';
-import { findByName, nearestPoi, toFound, type FoundPlace, type Poi } from './places.ts';
+import { findByName, nearestPoi, poiKind, toFound, type FoundPlace, type Poi } from './places.ts';
 import {
   DOT_RADIUS_STOPS,
   DOT_RING_PX,
@@ -77,6 +77,8 @@ interface Props {
   onPlanClick(id: string): void;
   /** Someone tapped a person's pin. */
   onPinClick(playerId: string): void;
+  /** Someone tapped a restaurant, cafe or bar on the map (not while choosing a spot for a flag). */
+  onPlaceTap(place: FoundPlace): void;
   /** Keyed by player id. */
   bubbles: Record<string, Bubble>;
 }
@@ -478,7 +480,7 @@ function flyToClear(map: maplibregl.Map, lngLat: [number, number]) {
 
 // --- the map -----------------------------------------------------------------
 
-export default function MapView({ players, me, start, ref, plans, selectedPlan, draft, dropping, onDrop, onPlanClick, onPinClick, bubbles }: Props) {
+export default function MapView({ players, me, start, ref, plans, selectedPlan, draft, dropping, onDrop, onPlanClick, onPinClick, onPlaceTap, bubbles }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const tracked = useRef(new Map<string, Tracked>());
@@ -503,6 +505,8 @@ export default function MapView({ players, me, start, ref, plans, selectedPlan, 
   onPlanClickRef.current = onPlanClick;
   const onPinClickRef = useRef(onPinClick);
   onPinClickRef.current = onPinClick;
+  const onPlaceTapRef = useRef(onPlaceTap);
+  onPlaceTapRef.current = onPlaceTap;
 
   useEffect(() => {
     const map = new maplibregl.Map({
@@ -520,7 +524,15 @@ export default function MapView({ players, me, start, ref, plans, selectedPlan, 
 
     // One click handler for the life of the map; it reads the latest dropping/onDrop from refs.
     const onMapClick = (e: maplibregl.MapMouseEvent) => {
-      if (!droppingRef.current) return;
+      if (!droppingRef.current) {
+        // Not choosing a spot: a tap on an eat-or-drink dot opens that place's card. About a thumb's width of slack.
+        if ((e.originalEvent.target as Element | null)?.closest?.('.maplibregl-marker, .maplibregl-ctrl')) return;
+        const mPerPx = (78_271.5 * Math.cos((e.lngLat.lat * Math.PI) / 180)) / 2 ** map.getZoom();
+        const eats = loadedPois(map).filter((p) => poiKind(p.cls, p.subclass, 12) !== 'meetup');
+        const poi = nearestPoi(eats, { lat: e.lngLat.lat, lng: e.lngLat.lng }, Math.min(60, Math.max(12, 36 * mPerPx)));
+        if (poi) onPlaceTapRef.current(toFound(poi, new Date().getHours()));
+        return;
+      }
       // Belt and braces: the X also stops its own click from bubbling here.
       if ((e.originalEvent.target as Element | null)?.closest?.('.xmark')) return;
       onDropRef.current({ lat: e.lngLat.lat, lng: e.lngLat.lng });

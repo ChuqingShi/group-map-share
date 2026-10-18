@@ -60,12 +60,14 @@ npm run build && npm start   # production, one process on :8787
 | Env var | Meaning |
 | ------- | ------- |
 | `GMS_PORT`, `GMS_HOST` | Port (default 8787) and interface (default 0.0.0.0). `PORT` is only honoured on Render |
+| `GMS_DATA_DIR` | Optional. A folder where events are saved every few seconds, so a restart or redeploy does not end them. Unset means nothing is ever written to disk. On Render this needs a persistent disk |
 | `GMS_HOST_KEY` | Optional. When set, only a browser that opened `/?host=<key>` once can start events; joining stays open to anyone with a link |
 | `GMS_TRUSTED_HOPS` | Proxies in front of the server (default 1) |
 | `GMS_ALLOWED_ORIGINS` | Extra hosts allowed to open WebSockets |
 
 On Render: set `GMS_HOST_KEY` if strangers shouldn't be able to start events. Rooms live in memory, so keep one
-instance; a restart or the free plan sleeping ends all events (people just start a new one).
+instance. Without `GMS_DATA_DIR` on a persistent disk, a restart or the free plan sleeping ends all events (people just
+start a new one); with it, events come back and everyone reconnects on their own.
 `scripts/demo.sh` starts a local demo with a host key and can open a Tailscale Funnel link (`--public`).
 
 ## Test it
@@ -75,15 +77,17 @@ Add `?sim` to a URL to fake GPS (`?sim=LAT,LNG` to start elsewhere); open two wi
 ```bash
 npm run typecheck
 npm test        # unit and server tests
-npm run e2e     # builds, then 29 scenes in two phone-sized Chromes (about two minutes)
+npm run e2e     # builds, then 32 scenes in two phone-sized Chromes (about two minutes)
 ```
 
 Phones need HTTPS for location; `localhost` counts. On iPhone, add the page to the Home Screen for notifications.
 
 ## Privacy and security
 
-- Server memory only: moods, flags, positions and contact lines vanish on restart, 3 hours after the last person
+- Server memory only by default: moods, flags, positions and contact lines vanish on restart, 3 hours after the last person
   leaves, and when you leave. Close the app and your location is forgotten after 5 minutes.
+- If the host sets `GMS_DATA_DIR`, events (names, moods, contact lines, flags, resume tokens) are also saved to a private
+  file there so a redeploy does not end them. Locations are never saved.
 - On your device: your events, name, character, optional contact line, recent moods and settings.
 - Everything people type is shown as plain text. Talk uses your browser's speech service (Chrome may send audio to
   Google); typing always works, and turning words into a bubble or flag happens on your device.

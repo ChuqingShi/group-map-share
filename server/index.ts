@@ -5,6 +5,7 @@ import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { RoomRegistry, type Conn, type Room } from './rooms.ts';
+import { Persister } from './persist.ts';
 import { serverConfig } from './config.ts';
 import { ConnectionLimiter, MessageBucket, RateWindow, SECURITY_HEADERS, callerIp, hostKeyOk, originOk } from './security.ts';
 import type { ClientMsg } from '../shared/protocol.ts';
@@ -27,6 +28,21 @@ const BUILD = process.env.GMS_BUILD || process.env.RENDER_GIT_COMMIT?.slice(0, 7
 const HELLO_TIMEOUT_MS = Number(process.env.GMS_HELLO_TIMEOUT_MS) || 10_000;
 
 export const registry = new RoomRegistry();
+/** Where events are saved so they survive a restart. Unset means nothing is ever written to disk. */
+const DATA_DIR = process.env.GMS_DATA_DIR || undefined;
+const persister = DATA_DIR ? new Persister(registry, DATA_DIR) : null;
+if (persister) {
+  const back = persister.load();
+  console.log(`saving events to ${persister.file}${back ? ` (${back} event${back === 1 ? '' : 's'} restored)` : ''}`);
+  persister.start();
+  // A redeploy sends SIGTERM: write everything down, then go.
+  for (const sig of ['SIGTERM', 'SIGINT'] as const) {
+    process.once(sig, () => {
+      persister.stop();
+      process.exit(0);
+    });
+  }
+}
 setInterval(() => registry.sweep(), 30_000).unref();
 
 // --- tiny per-IP limiter for room creation -------------------------------

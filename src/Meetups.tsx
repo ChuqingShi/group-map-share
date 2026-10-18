@@ -17,7 +17,7 @@ import {
   type Player,
 } from '../shared/protocol.ts';
 import { formatDistance, type LatLng } from './geo.ts';
-import { KIND_LABEL, MOOD_LABEL, metresTo, walkPhrase } from './meetup.ts';
+import { KIND_LABEL, MOOD_LABEL, directionsLink, mapsLink, metresTo, walkPhrase } from './meetup.ts';
 import { summarize, type Feeling } from './bubble.ts';
 import type { FoundPlace } from './places.ts';
 import { useSpeechInput } from './useSpeech.ts';
@@ -207,6 +207,8 @@ export function PlansPanel({ plans, players, me, mePos, selected, canPlant, onNe
                   {!mine && !p.declined.includes(me ?? '') && <button type="button" className="btn btn-small btn-ghost" data-testid="btn-plan-decline" onClick={() => onDecline(p.id)}>No thanks</button>}
                   {!mine && <button type="button" className="btn btn-small btn-ghost" data-testid="btn-plan-suggest" onClick={() => onSuggest(p.id)}>💡 Suggest</button>}
                   <button type="button" className="btn btn-small btn-ghost" data-testid="btn-plan-show" onClick={() => onShow(p.id)}>🗺️ Show</button>
+                  <a className="btn btn-small btn-ghost btn-a" data-testid="link-plan-maps" href={mapsLink(p)} target="_blank" rel="noopener noreferrer">📍 Google Maps</a>
+                  <a className="btn btn-small btn-ghost btn-a" data-testid="link-plan-directions" href={directionsLink(p)} target="_blank" rel="noopener noreferrer">🚶 Directions</a>
                   {mine && <button type="button" className="btn btn-small btn-ghost" data-testid="btn-plan-ping" onClick={() => onPing(p.id)}>🔔 Ping</button>}
                   {mine && (
                     <button type="button" className="btn btn-small btn-danger" data-testid="btn-plan-cancel" onClick={() => (armed === p.id ? (setArmed(null), onCancel(p.id)) : setArmed(p.id))}>

@@ -1,6 +1,7 @@
 // A game-board map style over free OpenFreeMap (OpenMapTiles schema) vector
 // tiles. Terrain classes get bold colours plus small hand-drawn patterns so
 // grass, sand, water, forest and parks read at a glance.
+import { EAT_CLASSES } from './places.ts';
 import type { StyleSpecification, Map as MlMap } from 'maplibre-gl';
 
 type Painter = (g: CanvasRenderingContext2D, s: number) => void;
@@ -247,6 +248,18 @@ export function gameStyle(): StyleSpecification {
         filter: ['==', ['geometry-type'], 'Point'],
         layout: { 'text-field': ['coalesce', ['get', 'name:latin'], ['get', 'name']], 'text-font': FONT_BOLD, 'text-size': 12 },
         paint: { 'text-color': '#226b1f', 'text-halo-color': '#e9ffd9', 'text-halo-width': 1.5 },
+      },
+      // Somewhere to eat or drink: a gold dot and its name. Tapping one opens its card with a Google Maps link.
+      {
+        id: 'eat-dot', type: 'circle', source: 'omt', 'source-layer': 'poi', minzoom: 15,
+        filter: ['any', ['match', ['get', 'class'], EAT_CLASSES as string[], true, false], ['match', ['get', 'subclass'], EAT_CLASSES as string[], true, false]] as never,
+        paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 15, 4, 18, 8], 'circle-color': '#ffcf4a', 'circle-stroke-color': '#2b1d12', 'circle-stroke-width': 2 },
+      },
+      {
+        id: 'eat-name', type: 'symbol', source: 'omt', 'source-layer': 'poi', minzoom: 16,
+        filter: ['any', ['match', ['get', 'class'], EAT_CLASSES as string[], true, false], ['match', ['get', 'subclass'], EAT_CLASSES as string[], true, false]] as never,
+        layout: { 'text-field': ['coalesce', ['get', 'name:latin'], ['get', 'name']], 'text-font': FONT_BOLD, 'text-size': 11, 'text-anchor': 'top', 'text-offset': [0, 0.9], 'text-max-width': 8 },
+        paint: { 'text-color': '#3b2f4a', 'text-halo-color': '#fff6ea', 'text-halo-width': 1.6 },
       },
       {
         id: 'place', type: 'symbol', source: 'omt', 'source-layer': 'place',

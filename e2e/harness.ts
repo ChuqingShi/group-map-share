@@ -10,7 +10,8 @@
 // every request to a non-local host is aborted so runs are offline-safe and fast (E2E_ALLOW_NET=1 lets them through).
 import { spawn, type ChildProcess } from 'node:child_process';
 import { once } from 'node:events';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { createServer as createNetServer } from 'node:net';
 import { join, resolve } from 'node:path';
 import { after, before, test } from 'node:test';
@@ -81,8 +82,11 @@ export interface TestServer {
   /** False once the child process has exited. */
   alive(): boolean;
   healthy(): Promise<boolean>;
-  /** Stop the server and start a fresh one on the same port: every room is gone, like a redeploy. */
-  restart(): Promise<void>;
+  /**
+   * Stop the server and start a fresh one on the same port, like a redeploy. Without saved events every room is gone;
+   * with them (setup({ persist: true })) the events come back. `hard` kills it without warning instead of asking it to stop.
+   */
+  restart(o?: { hard?: boolean }): Promise<void>;
   stop(): Promise<void>;
 }
 
@@ -117,12 +121,14 @@ async function pickPort(): Promise<number> {
 interface Running {
   child: ChildProcess;
   exited(): boolean;
-  kill(): Promise<void>;
+  kill(hard?: boolean): Promise<void>;
 }
 
 /** Spawn the production server on `port` and wait for /api/health. Returns null if it did not come up. */
-async function spawnServer(port: number, sink: (chunk: string) => void): Promise<Running | null> {
+async function spawnServer(port: number, sink: (chunk: string) => void, dataDir?: string): Promise<Running | null> {
   const env: NodeJS.ProcessEnv = { ...process.env, NODE_ENV: 'production', GMS_PORT: String(port), GMS_HOST: '127.0.0.1' };
+  delete env.GMS_DATA_DIR; // a developer's shell must not make the tests write to their disk
+  if (dataDir) env.GMS_DATA_DIR = dataDir;
   delete env.RENDER; // on Render the server would listen on PORT instead
   delete env.GMS_HOST_KEY; // a host key in the developer's shell would make room creation return 403
   const child = spawn(process.execPath, ['server/index.ts'], { cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -137,10 +143,10 @@ async function spawnServer(port: number, sink: (chunk: string) => void): Promise
   const running: Running = {
     child,
     exited: () => exited,
-    async kill() {
+    async kill(hard = false) {
       process.removeListener('exit', hardKill);
       if (exited) return;
-      child.kill('SIGTERM');
+      child.kill(hard ? 'SIGKILL' : 'SIGTERM');
       const timer = setTimeout(hardKill, 3000);
       await once(child, 'exit');
       clearTimeout(timer);
@@ -159,15 +165,16 @@ async function spawnServer(port: number, sink: (chunk: string) => void): Promise
   return null;
 }
 
-export async function startServer(): Promise<TestServer> {
+export async function startServer(o: { persist?: boolean } = {}): Promise<TestServer> {
   if (!existsSync(join(ROOT, 'dist', 'index.html'))) {
     throw new Error(`${join(ROOT, 'dist')} is missing: run "npm run build" first (npm run e2e does it for you)`);
   }
   let output = '';
   const sink = (chunk: string) => (output = (output + chunk).slice(-30_000));
+  const dataDir = o.persist ? mkdtempSync(join(tmpdir(), 'groupz-e2e-')) : undefined;
   for (let attempt = 1; attempt <= 3; attempt++) {
     const port = await pickPort();
-    let running = await spawnServer(port, sink);
+    let running = await spawnServer(port, sink, dataDir);
     if (!running) continue; // most likely the port was taken in the meantime: try another
     const baseUrl = `http://127.0.0.1:${port}`;
     log(`server on ${baseUrl} (node ${process.version}, serving ${join(ROOT, 'dist')})`);
@@ -184,13 +191,16 @@ export async function startServer(): Promise<TestServer> {
           return false;
         }
       },
-      async restart() {
-        await current.kill();
-        running = await spawnServer(port, sink);
+      async restart(opts = {}) {
+        await current.kill(opts.hard);
+        running = await spawnServer(port, sink, dataDir);
         if (!running) throw new Error(`server did not come back on port ${port}:\n${output}`);
         current = running;
       },
-      stop: () => current.kill(),
+      async stop() {
+        await current.kill();
+        if (dataDir) rmSync(dataDir, { recursive: true, force: true });
+      },
     };
   }
   throw new Error(`production server did not start:\n${output}`);
@@ -873,11 +883,11 @@ export interface Harness {
 }
 
 /** Call once per test file: starts the server and browser before the tests and stops both after, even on failure. */
-export function setup(): Harness {
+export function setup(o: { persist?: boolean } = {}): Harness {
   let server: TestServer | undefined;
   let browser: Browser | undefined;
   before(async () => {
-    server = await startServer();
+    server = await startServer(o);
     browser = await launchBrowser();
   });
   after(async () => {

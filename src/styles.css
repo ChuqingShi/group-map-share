@@ -48,6 +48,7 @@ button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulat
 }
 .btn:active:not(:disabled) { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--ink); }
 .btn:disabled { opacity: 0.55; cursor: default; }
+.btn-a { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; color: var(--ink); text-align: center; }
 /* Long labels ("Join & share my location") must wrap, not clip, on 360px phones. */
 .btn-big { font-size: 1rem; padding: 14px 14px; width: 100%; white-space: normal; line-height: 1.25; letter-spacing: 0.06em; }
 .btn-small { padding: 9px 10px; font-size: 0.8rem; letter-spacing: 0.05em; min-height: 44px; }

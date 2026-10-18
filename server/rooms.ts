@@ -1,4 +1,5 @@
-// In-memory, ephemeral room registry. Nothing here is ever written to disk.
+// Room registry. State lives in memory; the registry can hand out a snapshot and take one back (see persist.ts),
+// which only happens when the host sets GMS_DATA_DIR. Locations are never part of a snapshot.
 import { randomBytes } from 'node:crypto';
 import {
   AVATARS,
@@ -548,9 +549,166 @@ export class RoomRegistry {
     }
   }
 
+  /**
+   * Everything needed to bring the events back after a restart: people, moods, contact lines, flags and RSVPs.
+   * Positions are left out on purpose (people send a fresh one the moment they reconnect), and so are sockets.
+   * Contains the resume tokens, so the file it ends up in must stay private.
+   */
+  toSnapshot(): Snapshot {
+    const rooms: SavedRoom[] = [];
+    for (const room of this.rooms.values()) {
+      rooms.push({
+        id: room.id,
+        name: room.name,
+        createdAt: room.createdAt,
+        lastActive: room.lastActive,
+        lastPingAt: room.lastPingAt,
+        members: [...room.members.values()].map((m) => ({
+          token: m.token,
+          active: m.active,
+          paused: m.paused,
+          player: { ...m.player, pos: null, online: false },
+        })),
+        plans: [...room.plans.values()],
+      });
+    }
+    return { v: 1, savedAt: this.opts.now(), rooms };
+  }
+
+  /**
+   * Load a snapshot into an empty registry. Anything malformed is skipped rather than trusted, and everyone
+   * starts offline, with their offline clock running from the moment the snapshot was taken. Returns the number of events restored.
+   */
+  restore(raw: unknown): number {
+    if (!isRecord(raw) || raw.v !== 1 || !Array.isArray(raw.rooms)) return 0;
+    const savedAt = typeof raw.savedAt === 'number' && Number.isFinite(raw.savedAt) ? raw.savedAt : this.opts.now();
+    let restored = 0;
+    for (const r of raw.rooms) {
+      if (this.rooms.size >= this.opts.maxRooms) break;
+      try {
+        const room = restoreRoom(r, savedAt);
+        if (room && !this.rooms.has(room.id)) {
+          this.rooms.set(room.id, room);
+          restored++;
+        }
+      } catch {
+        /* one bad event must not stop the rest */
+      }
+    }
+    return restored;
+  }
+
   broadcast(room: Room, msg: ServerMsg, exceptId?: string) {
     for (const m of room.members.values()) {
       if (m.conn && m.player.id !== exceptId) m.conn.send(msg);
     }
   }
+}
+
+// --- snapshots ---------------------------------------------------------------
+
+interface SavedMember {
+  token: string;
+  active: boolean;
+  paused: boolean;
+  player: Player;
+}
+
+interface SavedRoom {
+  id: string;
+  name: string;
+  createdAt: number;
+  lastActive: number;
+  lastPingAt: number;
+  members: SavedMember[];
+  plans: Plan[];
+}
+
+export interface Snapshot {
+  v: 1;
+  savedAt: number;
+  rooms: SavedRoom[];
+}
+
+const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+const num = (v: unknown, fallback: number) => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
+const idOf = (v: unknown): string | null => (typeof v === 'string' && /^[\w-]{1,40}$/.test(v) ? v : null);
+
+function restoreMood(v: unknown): Player['mood'] {
+  if (!isRecord(v)) return null;
+  const id = typeof v.id === 'string' && ((MOODS as readonly string[]).includes(v.id) || v.id === 'custom') ? (v.id as MoodId | 'custom') : null;
+  if (!id) return null;
+  return { id, emoji: cleanEmoji(v.emoji), label: cleanText(v.label, MOOD_TEXT_MAX), note: cleanText(v.note, NOTE_MAX), at: num(v.at, 0) };
+}
+
+function restoreRoom(r: unknown, savedAt: number): Room | null {
+  if (!isRecord(r)) return null;
+  const id = typeof r.id === 'string' && /^[\w-]{16,64}$/.test(r.id) ? r.id : null;
+  if (!id || !Array.isArray(r.members) || !Array.isArray(r.plans)) return null;
+  const room: Room = {
+    id,
+    name: cleanText(r.name, EVENT_NAME_MAX) || 'Our event',
+    createdAt: num(r.createdAt, savedAt),
+    lastActive: num(r.lastActive, savedAt),
+    lastPingAt: num(r.lastPingAt, 0),
+    members: new Map(),
+    plans: new Map(),
+  };
+  for (const m of r.members.slice(0, MAX_PLAYERS_PER_ROOM)) {
+    if (!isRecord(m) || !isRecord(m.player)) continue;
+    const p = m.player;
+    const pid = idOf(p.id);
+    if (!pid || room.members.has(pid) || typeof m.token !== 'string' || m.token.length < 10 || m.token.length > 80) continue;
+    room.members.set(pid, {
+      token: m.token,
+      conn: null,
+      lastPosAt: 0,
+      lastPlanAt: 0,
+      lastPingAt: 0,
+      lastBubbleAt: 0,
+      active: m.active === true,
+      paused: m.paused === true,
+      offlineSince: savedAt,
+      player: {
+        id: pid,
+        name: cleanName(p.name),
+        avatar: (AVATARS as readonly string[]).includes(p.avatar as string) ? (p.avatar as string) : AVATARS[0],
+        color: (COLORS as readonly string[]).includes(p.color as string) ? (p.color as string) : COLORS[0],
+        pos: null,
+        online: false,
+        sharing: p.sharing === true,
+        mood: restoreMood(p.mood),
+        organizer: p.organizer === true,
+        contact: cleanText(p.contact, CONTACT_MAX),
+      },
+    });
+  }
+  const people = (v: unknown) => (Array.isArray(v) ? [...new Set(v.filter((x): x is string => typeof x === 'string' && room.members.has(x)))] : []);
+  for (const q of r.plans.slice(0, MAX_PLANS_PER_ROOM)) {
+    if (!isRecord(q)) continue;
+    const planId = idOf(q.id);
+    const by = typeof q.by === 'string' && room.members.has(q.by) ? q.by : null;
+    const kind = (PLAN_KINDS as readonly string[]).includes(q.kind as string) ? (q.kind as PlanKind) : null;
+    if (!planId || !by || !kind || !validLatLng(q.lat, q.lng) || room.plans.has(planId)) continue;
+    const suggestions = (Array.isArray(q.suggestions) ? q.suggestions : []).slice(0, MAX_SUGGESTIONS_PER_PLAN).flatMap((sg) => {
+      const sid = isRecord(sg) ? idOf(sg.id) : null;
+      if (!isRecord(sg) || !sid || typeof sg.by !== 'string') return [];
+      return [{ id: sid, by: sg.by, byName: cleanName(sg.byName), place: cleanText(sg.place, PLACE_MAX), note: cleanText(sg.note, NOTE_MAX), at: num(sg.at, 0) }];
+    });
+    room.plans.set(planId, {
+      id: planId,
+      by,
+      byName: cleanName(q.byName),
+      kind,
+      place: cleanText(q.place, PLACE_MAX),
+      note: cleanText(q.note, NOTE_MAX),
+      lat: q.lat as number,
+      lng: q.lng as number,
+      joined: people(q.joined),
+      declined: people(q.declined),
+      suggestions,
+      createdAt: num(q.createdAt, savedAt),
+    });
+  }
+  return room;
 }

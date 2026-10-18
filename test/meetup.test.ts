@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { announcement, contactLink, treasureArc, walkMinutes } from '../src/meetup.ts';
+import { announcement, contactLink, directionsLink, mapsLink, treasureArc, walkMinutes } from '../src/meetup.ts';
 import { distanceM } from '../src/geo.ts';
 import type { Plan } from '../shared/protocol.ts';
 
@@ -49,4 +49,31 @@ test('a contact line becomes a link only when it is plainly a phone number or an
   for (const text of ['find me by the fountain', 'javascript:alert(1)', 'call me at 5', '123', 'a@b', '<a@b.co>', 'ann@example.com please', 'tel:123456789', 'x'.repeat(30), '', '+', '1234567890123456789012']) {
     assert.equal(contactLink(text), null, JSON.stringify(text));
   }
+});
+
+test('map links are https Google Maps URLs built from the name and coordinates only', () => {
+  const url = new URL(mapsLink({ place: "Joe's Tacos & Tequila", lat: 34.0123456789, lng: -118.49 }));
+  assert.equal(url.origin + url.pathname, 'https://www.google.com/maps/search/');
+  assert.equal(url.searchParams.get('api'), '1');
+  assert.equal(url.searchParams.get('query'), "Joe's Tacos & Tequila 34.012346,-118.49");
+  // Without a name it is just a pin on the spot.
+  assert.equal(new URL(mapsLink({ lat: 1, lng: 2 })).searchParams.get('query'), '1,2');
+  assert.equal(new URL(mapsLink({ place: '   ', lat: 1, lng: 2 })).searchParams.get('query'), '1,2');
+});
+
+test('whatever a person typed as the place name cannot change the link beyond the query', () => {
+  const nasty = 'x&destination=evil.example/#"><script>alert(1)</script>\n  y';
+  const url = new URL(mapsLink({ place: nasty, lat: 1, lng: 2 }));
+  assert.equal(url.origin, 'https://www.google.com');
+  assert.equal(url.pathname, '/maps/search/');
+  assert.deepEqual([...url.searchParams.keys()], ['api', 'query']);
+  assert.equal(url.hash, '');
+  assert.ok(!url.search.includes('<') && !url.search.includes('"'));
+});
+
+test('directions link goes to the exact coordinates on foot', () => {
+  const url = new URL(directionsLink({ lat: 34.01, lng: -118.49 }));
+  assert.equal(url.origin + url.pathname, 'https://www.google.com/maps/dir/');
+  assert.equal(url.searchParams.get('destination'), '34.01,-118.49');
+  assert.equal(url.searchParams.get('travelmode'), 'walking');
 });

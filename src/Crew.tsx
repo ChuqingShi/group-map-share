@@ -35,6 +35,8 @@ export interface ToastItem {
   text: string;
   who?: Pick<Player, 'avatar' | 'color' | 'name'>;
   planId?: string;
+  /** Google Maps link for the spot a ping is about. */
+  mapHref?: string;
   /** One button on the toast, for example Undo. Running it dismisses the toast. */
   action?: { label: string; run: () => void };
   /** Date.now() after which the toast goes away. */
@@ -68,6 +70,7 @@ export function Toasts({ items, isJoined, onDismiss, onJoin, onDecline, onSugges
                 <button type="button" className="btn btn-small btn-ghost" data-testid="btn-toast-decline" onClick={() => onDecline(t.planId!, t.id)}>No thanks</button>
                 <button type="button" className="btn btn-small btn-ghost" data-testid="btn-toast-suggest" onClick={() => onSuggest(t.planId!, t.id)}>💡 Suggest</button>
                 <button type="button" className="btn btn-small btn-ghost" data-testid="btn-toast-show" onClick={() => onShow(t.planId!, t.id)}>Show me</button>
+                {t.mapHref && <a className="btn btn-small btn-ghost btn-a" data-testid="link-toast-maps" href={t.mapHref} target="_blank" rel="noopener noreferrer">📍 Google Maps</a>}
               </span>
             )}
           </span>

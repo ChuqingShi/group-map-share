@@ -94,3 +94,21 @@ export function contactLink(text: string): { href: string; label: string } | nul
   }
   return null;
 }
+
+const round6 = (n: number) => Math.round(n * 1e6) / 1e6;
+
+/**
+ * A Google Maps link for a spot. Only the place name and coordinates go into it, and only when someone
+ * taps the link: the app itself never talks to Google. With a name, Google searches "name lat,lng" so
+ * it lands on the restaurant's own listing (hours, photos, reviews); without one it drops a pin.
+ */
+export function mapsLink(p: { lat: number; lng: number; place?: string }): string {
+  const at = `${round6(p.lat)},${round6(p.lng)}`;
+  const name = (p.place ?? '').replace(/\s+/g, ' ').trim();
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name ? `${name} ${at}` : at)}`;
+}
+
+/** Walking directions to the exact spot, starting from wherever the phone is. */
+export function directionsLink(p: { lat: number; lng: number }): string {
+  return `https://www.google.com/maps/dir/?api=1&destination=${round6(p.lat)},${round6(p.lng)}&travelmode=walking`;
+}

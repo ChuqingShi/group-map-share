@@ -4,7 +4,7 @@
 import { useState, type CSSProperties } from 'react';
 import { CONTACT_MAX, PLAN_EMOJI, type Plan, type Player } from '../shared/protocol.ts';
 import { formatAgo, formatDistance, distanceM, type LatLng } from './geo.ts';
-import { KIND_LABEL, contactLink, moodEmoji, moodText } from './meetup.ts';
+import { KIND_LABEL, contactLink, mapsLink, moodEmoji, moodText } from './meetup.ts';
 
 export function PersonCard({ player, isMe, plans, mePlayerId, mePos, now, clockOffset, onClose, onShowOnMap, onShowPlan, onJoin, onLeave, onSave }: {
   player: Player;
@@ -50,6 +50,7 @@ export function PersonCard({ player, isMe, plans, mePlayerId, mePos, now, clockO
         </span>
         <span className="card-plan-actions">
           <button type="button" className="btn btn-small btn-ghost" onClick={() => onShowPlan(p.id)}>Show</button>
+          <a className="btn btn-small btn-ghost btn-a" data-testid="link-card-maps" href={mapsLink(p)} target="_blank" rel="noopener noreferrer" aria-label={`${p.place} on Google Maps`}>📍 Map</a>
           {!inIt ? (
             <button type="button" className="btn btn-small" onClick={() => onJoin(p.id)}>I&apos;m in</button>
           ) : p.by !== mePlayerId ? (
