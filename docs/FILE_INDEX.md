@@ -123,7 +123,9 @@ What each file in the project does. Entry points are marked **(entry)**.
 | ---- | ------------ |
 | `TESTING.md` | Testing guide |
 | `MEETUPS.md` | Design notes for moods, flags, trails, bubbles |
-| `FILE_INDEX.md` | This file |
+| `FILE_INDEX.md` | Table of every project file and what it does, grouped by folder, with entry points marked |
+| `TECH_STACK.md` | Every library, runtime, browser API and outside service, and which feature uses it |
+| `TODO.md` | Task list with checkboxes, ordered by the pages a user goes through |
 | `screenshot.png` | README screenshot |
 | `ci/ci.yml` | GitHub Actions CI workflow, parked here until moved to `.github/workflows/` |
 | `email/approve-request.html`, `email/preview.png` | HTML email template for PR-approval requests, and its preview |
