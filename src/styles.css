@@ -97,7 +97,7 @@ h1 {
   flex: none; display: grid; place-items: center; width: 28px; height: 28px;
   background: var(--red); color: var(--cream); border: 2px solid var(--ink); transform: rotate(-3deg);
 }
-.fineprint { font-size: 0.8rem; opacity: 0.85; margin: 14px 0 0; line-height: 1.4; }
+.fineprint { font-size: 0.8rem; opacity: 0.85; margin: 14px 0 0; line-height: 1.4; text-align: left; }
 .error { color: var(--red-ink); font-weight: 700; }
 
 /* ---------- room / HUD ---------- */
@@ -405,7 +405,7 @@ button.chip { font: inherit; font-family: var(--head); font-weight: 900; font-si
 a.btn { display: inline-block; text-align: center; text-decoration: none; color: var(--ink); }
 
 /* Placeholder text readable on the cream inputs (browser defaults are about 4.3:1). */
-input::placeholder { color: #5b6275; opacity: 1; }
+input::placeholder { color: #5b6275; opacity: 1; font-weight: 400;}
 .quest-intro .controls, .quest-intro + .controls { flex-wrap: wrap; }
 .quest-intro .controls .btn { flex: 1 1 auto; }
 

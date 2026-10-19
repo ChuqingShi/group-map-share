@@ -1,7 +1,7 @@
 // Wire protocol shared by the browser client and the Node server.
 
-export const AVATARS = ['🦊', '🐸', '🐼', '🐧', '🦄', '🐙', '🐯', '🐨', '🐵', '🦁', '🐰', '🐲'] as const;
-export const COLORS = ['#ff5d73', '#ffb020', '#3ddc84', '#2fb8ff', '#a66cff', '#ff7ad9', '#00c2a8', '#ff8a3d'] as const;
+export const AVATARS = ['🦊', '🐰', '🐶', '🐱', '🦁', '🐯', '🐙', '🐻', '🐼', '🐨', '🐧', '🐸', '🐲', '🦄'] as const;
+export const COLORS = ['#ff5d73', '#ff8a3d', '#FFD600', '#3ddc84', '#00c2a8','#2fb8ff', '#a66cff', '#ff7ad9'] as const;
 
 export const NAME_MAX = 24;
 /** A line of contact info on someone's card: a phone number, an email, "find me by the fountain". */
