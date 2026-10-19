@@ -164,7 +164,7 @@ function Landing({ onCreated, onOpen, autoResume: resumeFirst }: { onCreated: (i
       <div className="landing-card">
         <div className="logo">📍</div>
         <h1>Groupz</h1>
-        <p className="tagline">See where your crew is, live. No app, no account, no phone numbers.</p>
+        <p className="tagline">See where your crew is, live. <br />No app, no account, no phone numbers.</p>
         {events.length > 0 ? (
           <section className="events" data-testid="events-list" aria-label="Your events">
             <h2>Your events</h2>
@@ -847,7 +847,7 @@ function JoinScreen({ eventName, onJoin }: { eventName: string; onJoin: (p: Prof
           {p.avatar}
         </button>
         <h1>{eventName || 'Join the map'}</h1>
-        <p className="tagline">Share where you are with this crew. It takes a few seconds.</p>
+        <p className="tagline">Choose a name and avatar to join your crew.</p>
         {editing ? (
           <label className="field">
             <span>Your name</span>
