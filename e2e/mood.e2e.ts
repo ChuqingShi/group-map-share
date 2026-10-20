@@ -44,3 +44,61 @@ scenario('3. mood: Ann is hungry, Bob sees a badge on her pin and avatar, cleari
   ann.assertNoErrors();
   bob.assertNoErrors();
 });
+
+/** Records the name of every sound effect that starts playing (window.__sfx), by following each /sfx/<name>.mp3 through decoding. */
+function recordSfx() {
+  const w = window as any;
+  w.__sfx = [] as string[];
+  const names = new WeakMap<object, string>();
+  const fetch0 = window.fetch;
+  window.fetch = async (...args: Parameters<typeof fetch>) => {
+    const r = await fetch0(...args);
+    const name = /\/sfx\/(\w+)\.mp3$/.exec(String(args[0]))?.[1];
+    if (name) {
+      const read = r.arrayBuffer.bind(r);
+      r.arrayBuffer = async () => {
+        const b = await read();
+        names.set(b, name);
+        return b;
+      };
+    }
+    return r;
+  };
+  const decode0 = BaseAudioContext.prototype.decodeAudioData;
+  BaseAudioContext.prototype.decodeAudioData = async function (this: BaseAudioContext, b: ArrayBuffer) {
+    const name = names.get(b);
+    const buf = await decode0.call(this, b);
+    if (name) names.set(buf, name);
+    return buf;
+  } as any;
+  const start0 = AudioBufferSourceNode.prototype.start;
+  AudioBufferSourceNode.prototype.start = function (this: AudioBufferSourceNode, ...a: any[]) {
+    const name = this.buffer && names.get(this.buffer);
+    if (name) w.__sfx.push(name);
+    return start0.apply(this, a as any);
+  };
+}
+
+scenario('3b. mood sound: one ding per mood change, not one per location update', async (s) => {
+  const ann = await s.player('Ann', SPOTS.ann);
+  await ann.context.addInitScript(recordSfx);
+  await ann.reload();
+  const moodDings = async () => ((await ann.page.evaluate(() => (window as any).__sfx)) as string[]).filter((n) => n === 'mood').length;
+  const moodEchoes = () => ann.received.filter((m) => m.t === 'player' && m.player.id === ann.id && m.player.mood?.id === 'hungry').length;
+
+  await openSheet(ann, 'btn-mood', 'mood-sheet');
+  await ann.tid('mood-hungry').click();
+  await eventually(async () => assert.equal(await moodDings(), 1), { message: 'setting a mood dings once' });
+
+  // Ann keeps walking (?sim), so the server keeps re-sending her player record with the same mood in it.
+  const before = moodEchoes();
+  await eventually(() => assert.ok(moodEchoes() >= before + 3), { message: 'a few location updates arrive with the mood unchanged' });
+  assert.equal(await moodDings(), 1, 'location updates must not ding again');
+
+  // Clearing is a real change: one more ding.
+  await openSheet(ann, 'btn-mood', 'mood-sheet');
+  await ann.tid('btn-mood-clear').click();
+  await eventually(async () => assert.equal(await moodDings(), 2), { message: 'clearing the mood dings once' });
+
+  ann.assertNoErrors();
+});
