@@ -465,7 +465,7 @@ button, summary, [role='button'], .pin, .xmark, .player {
 }
 .tool-flag { touch-action: none; }
 /* A press moves the button 3 px (the pressed look); a 3 px halo keeps the finger on it, so the tap still counts. */
-.btn, .btn-icon, .tool, .mood, .kind, .chip-pill, .emoji-pick, .crew-avatar, .quest-chip, .toast-x, .btn-link, .btn-link-inline { position: relative; }
+.btn, .btn-icon, .tool, .mood, .kind, .chip-pill, .emoji-pick, .crew-avatar, .toast-x, .btn-link, .btn-link-inline { position: relative; }
 .btn::after, .btn-icon::after, .tool::after, .mood::after, .kind::after, .chip-pill::after, .emoji-pick::after, .crew-avatar::after, .quest-chip::after, .toast-x::after {
   content: ''; position: absolute; inset: -3px;
 }
