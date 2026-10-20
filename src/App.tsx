@@ -399,7 +399,7 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
   // Server notices (rate limits and so on).
   useEffect(() => {
     if (!room.notice) return;
-    pushToast({ kind: 'info', emoji: '⏳', text: room.notice });
+    pushToast({ kind: 'info', emoji: '⚠️', text: room.notice });
     room.clearNotice();
   }, [room.notice]);
 
