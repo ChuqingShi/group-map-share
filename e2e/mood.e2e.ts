@@ -5,44 +5,44 @@ import { SPOTS, avatarMood, eventually, openSheet, pinFor, setup, waitForCrew } 
 
 const { scenario } = setup();
 
-scenario('3. mood: Ann is hungry, Bob sees a badge on her pin and avatar, clearing removes it', async (s) => {
-  const ann = await s.player('Ann', SPOTS.ann);
-  const bob = await s.player('Bob', SPOTS.bob, { roomUrl: ann.roomUrl });
-  await Promise.all([waitForCrew(ann, 2), waitForCrew(bob, 2)]);
+scenario("3. mood: Breeca is hungry, Eric sees a badge on Breeca's pin and avatar, clearing removes it", async (s) => {
+  const breeca = await s.player('Breeca', SPOTS.breeca);
+  const eric = await s.player('Eric', SPOTS.eric, { roomUrl: breeca.roomUrl });
+  await Promise.all([waitForCrew(breeca, 2), waitForCrew(eric, 2)]);
 
   // No mood to begin with.
-  assert.equal(await pinFor(bob, ann.id).locator('[data-testid="pin-mood"]').count(), 0);
+  assert.equal(await pinFor(eric, breeca.id).locator('[data-testid="pin-mood"]').count(), 0);
 
   // One tap on a common mood and it is shared: no second button.
-  await openSheet(ann, 'btn-mood', 'mood-sheet');
-  await ann.tid('mood-hungry').click();
-  await eventually(async () => assert.equal(await ann.tid('mood-sheet').isVisible(), false), { message: 'the sheet closes by itself' });
+  await openSheet(breeca, 'btn-mood', 'mood-sheet');
+  await breeca.tid('mood-hungry').click();
+  await eventually(async () => assert.equal(await breeca.tid('mood-sheet').isVisible(), false), { message: 'the sheet closes by itself' });
 
   // On the wire first, so a failure says whether the server or the UI is at fault.
-  const moodMsg = await bob.waitForMessage<Extract<ServerMsg, { t: 'player' }>>(
-    (m) => m.t === 'player' && m.player.id === ann.id && m.player.mood?.id === 'hungry',
+  const moodMsg = await eric.waitForMessage<Extract<ServerMsg, { t: 'player' }>>(
+    (m) => m.t === 'player' && m.player.id === breeca.id && m.player.mood?.id === 'hungry',
   );
   assert.equal(moodMsg.player.mood?.label, 'Hungry');
   assert.equal(moodMsg.player.mood?.emoji, MOOD_EMOJI.hungry);
 
-  // Bob: a badge on Ann's pin and on Ann's avatar. Ann sees her own avatar badge too.
-  await eventually(async () => assert.ok((await pinFor(bob, ann.id).locator('[data-testid="pin-mood"]').count()) > 0), {
-    message: "mood badge on Ann's pin (Bob's screen)",
+  // Eric: a badge on Breeca's pin and on Breeca's avatar. Breeca sees the badge on their own avatar too.
+  await eventually(async () => assert.ok((await pinFor(eric, breeca.id).locator('[data-testid="pin-mood"]').count()) > 0), {
+    message: "mood badge on Breeca's pin (Eric's screen)",
   });
-  await eventually(async () => assert.ok(await avatarMood(bob, ann.id, MOOD_EMOJI.hungry)), { message: "mood on Ann's avatar (Bob's screen)" });
-  await eventually(async () => assert.ok(await avatarMood(ann, ann.id, MOOD_EMOJI.hungry)), { message: "mood on Ann's own avatar" });
+  await eventually(async () => assert.ok(await avatarMood(eric, breeca.id, MOOD_EMOJI.hungry)), { message: "mood on Breeca's avatar (Eric's screen)" });
+  await eventually(async () => assert.ok(await avatarMood(breeca, breeca.id, MOOD_EMOJI.hungry)), { message: "mood on Breeca's own avatar" });
 
   // Clear it again.
-  await openSheet(ann, 'btn-mood', 'mood-sheet');
-  await ann.tid('btn-mood-clear').click();
-  await eventually(async () => assert.equal(await pinFor(bob, ann.id).locator('[data-testid="pin-mood"]').count(), 0), {
-    message: "mood badge gone from Ann's pin",
+  await openSheet(breeca, 'btn-mood', 'mood-sheet');
+  await breeca.tid('btn-mood-clear').click();
+  await eventually(async () => assert.equal(await pinFor(eric, breeca.id).locator('[data-testid="pin-mood"]').count(), 0), {
+    message: "mood badge gone from Breeca's pin",
   });
-  await eventually(async () => assert.equal(await avatarMood(bob, ann.id, MOOD_EMOJI.hungry), false), { message: "mood gone from Ann's avatar" });
-  await eventually(async () => assert.equal(await avatarMood(ann, ann.id, MOOD_EMOJI.hungry), false), { message: "mood gone from Ann's own avatar" });
+  await eventually(async () => assert.equal(await avatarMood(eric, breeca.id, MOOD_EMOJI.hungry), false), { message: "mood gone from Breeca's avatar" });
+  await eventually(async () => assert.equal(await avatarMood(breeca, breeca.id, MOOD_EMOJI.hungry), false), { message: "mood gone from Breeca's own avatar" });
 
-  ann.assertNoErrors();
-  bob.assertNoErrors();
+  breeca.assertNoErrors();
+  eric.assertNoErrors();
 });
 
 /** Records the name of every sound effect that starts playing (window.__sfx), by following each /sfx/<name>.mp3 through decoding. */
@@ -80,25 +80,25 @@ function recordSfx() {
 }
 
 scenario('3b. mood sound: one ding per mood change, not one per location update', async (s) => {
-  const ann = await s.player('Ann', SPOTS.ann);
-  await ann.context.addInitScript(recordSfx);
-  await ann.reload();
-  const moodDings = async () => ((await ann.page.evaluate(() => (window as any).__sfx)) as string[]).filter((n) => n === 'mood').length;
-  const moodEchoes = () => ann.received.filter((m) => m.t === 'player' && m.player.id === ann.id && m.player.mood?.id === 'hungry').length;
+  const breeca = await s.player('Breeca', SPOTS.breeca);
+  await breeca.context.addInitScript(recordSfx);
+  await breeca.reload();
+  const moodDings = async () => ((await breeca.page.evaluate(() => (window as any).__sfx)) as string[]).filter((n) => n === 'mood').length;
+  const moodEchoes = () => breeca.received.filter((m) => m.t === 'player' && m.player.id === breeca.id && m.player.mood?.id === 'hungry').length;
 
-  await openSheet(ann, 'btn-mood', 'mood-sheet');
-  await ann.tid('mood-hungry').click();
+  await openSheet(breeca, 'btn-mood', 'mood-sheet');
+  await breeca.tid('mood-hungry').click();
   await eventually(async () => assert.equal(await moodDings(), 1), { message: 'setting a mood dings once' });
 
-  // Ann keeps walking (?sim), so the server keeps re-sending her player record with the same mood in it.
+  // Breeca keeps walking (?sim), so the server keeps re-sending Breeca's player record with the same mood in it.
   const before = moodEchoes();
   await eventually(() => assert.ok(moodEchoes() >= before + 3), { message: 'a few location updates arrive with the mood unchanged' });
   assert.equal(await moodDings(), 1, 'location updates must not ding again');
 
   // Clearing is a real change: one more ding.
-  await openSheet(ann, 'btn-mood', 'mood-sheet');
-  await ann.tid('btn-mood-clear').click();
+  await openSheet(breeca, 'btn-mood', 'mood-sheet');
+  await breeca.tid('btn-mood-clear').click();
   await eventually(async () => assert.equal(await moodDings(), 2), { message: 'clearing the mood dings once' });
 
-  ann.assertNoErrors();
+  breeca.assertNoErrors();
 });

@@ -12,148 +12,148 @@ const openCard = async (viewer: Player, whoId: string) => {
 };
 
 scenario('15. person card: tap a picture, a name or a pin for their mood, contact info and plans', async (s) => {
-  const ann = await s.player('Ann', SPOTS.ann);
-  const bob = await s.player('Bob', SPOTS.bob, { roomUrl: ann.roomUrl });
-  await Promise.all([waitForCrew(ann, 2), waitForCrew(bob, 2)]);
+  const breeca = await s.player('Breeca', SPOTS.breeca);
+  const eric = await s.player('Eric', SPOTS.eric, { roomUrl: breeca.roomUrl });
+  await Promise.all([waitForCrew(breeca, 2), waitForCrew(eric, 2)]);
 
-  // Ann is hungry, has a flag out, and puts her email on her own card.
-  await openSheet(ann, 'btn-mood', 'mood-sheet');
-  await ann.tid('mood-hungry').click();
-  await createPlan(ann, { kind: 'lunch', place: "Joe's Tacos", ping: false });
-  await openCard(ann, ann.id);
-  assert.match(await ann.tid('card-name').innerText(), /Ann.*you/i, 'my own card says (you)');
-  assert.equal(await ann.tid('card-contact-input').inputValue(), '', 'no contact yet');
-  await ann.tid('card-contact-input').fill('ann@example.com');
-  await ann.tid('btn-card-save').click();
-  await eventually(() => assert.ok(ann.sent.some((m) => m.t === 'contact' && m.text === 'ann@example.com')), { message: 'contact sent' });
-  await closeSheet(ann, 'person-card');
+  // Breeca is hungry, has a flag out, and puts an email on their own card.
+  await openSheet(breeca, 'btn-mood', 'mood-sheet');
+  await breeca.tid('mood-hungry').click();
+  await createPlan(breeca, { kind: 'lunch', place: "Joe's Tacos", ping: false });
+  await openCard(breeca, breeca.id);
+  assert.match(await breeca.tid('card-name').innerText(), /Breeca.*you/i, 'my own card says (you)');
+  assert.equal(await breeca.tid('card-contact-input').inputValue(), '', 'no contact yet');
+  await breeca.tid('card-contact-input').fill('breeca@example.com');
+  await breeca.tid('btn-card-save').click();
+  await eventually(() => assert.ok(breeca.sent.some((m) => m.t === 'contact' && m.text === 'breeca@example.com')), { message: 'contact sent' });
+  await closeSheet(breeca, 'person-card');
 
-  // Bob taps Ann's picture.
-  await openCard(bob, ann.id);
-  await eventually(async () => assert.match(await bob.tid('card-name').innerText(), /^Ann$/i), { message: "Ann's name" });
-  await eventually(async () => assert.match(await bob.tid('card-mood').innerText(), new RegExp(`${MOOD_EMOJI.hungry}.*Hungry`)), { message: "Ann's mood" });
-  await eventually(async () => assert.equal(await bob.tid('card-contact-link').getAttribute('href'), 'mailto:ann@example.com'), { message: "her email is a tap to email link" });
-  await eventually(async () => assert.equal(await bob.tid('card-plan').count(), 1), { message: "Ann's flag is on her card" });
-  assert.match(await bob.tid('card-plan').first().innerText(), /Joe's Tacos/);
-  assert.equal(await bob.tid('btn-card-show').isEnabled(), true);
-  // From the card Bob can join her flag.
-  await bob.tid('card-plan').first().locator('button', { hasText: "I'm in" }).click();
-  await eventually(async () => assert.equal(await ann.tid('card-plan').count(), 0), { message: 'sanity: Ann has no card open' }).catch(() => {});
-  await eventually(() => assert.ok(bob.sent.some((m) => m.t === 'plan_join')), { message: 'joined from the card' });
-  await closeSheet(bob, 'person-card');
+  // Eric taps Breeca's picture.
+  await openCard(eric, breeca.id);
+  await eventually(async () => assert.match(await eric.tid('card-name').innerText(), /^Breeca$/i), { message: "Breeca's name" });
+  await eventually(async () => assert.match(await eric.tid('card-mood').innerText(), new RegExp(`${MOOD_EMOJI.hungry}.*Hungry`)), { message: "Breeca's mood" });
+  await eventually(async () => assert.equal(await eric.tid('card-contact-link').getAttribute('href'), 'mailto:breeca@example.com'), { message: "the email is a tap to email link" });
+  await eventually(async () => assert.equal(await eric.tid('card-plan').count(), 1), { message: "Breeca's flag is on Breeca's card" });
+  assert.match(await eric.tid('card-plan').first().innerText(), /Joe's Tacos/);
+  assert.equal(await eric.tid('btn-card-show').isEnabled(), true);
+  // From the card Eric can join Breeca's flag.
+  await eric.tid('card-plan').first().locator('button', { hasText: "I'm in" }).click();
+  await eventually(async () => assert.equal(await breeca.tid('card-plan').count(), 0), { message: 'sanity: Breeca has no card open' }).catch(() => {});
+  await eventually(() => assert.ok(eric.sent.some((m) => m.t === 'plan_join')), { message: 'joined from the card' });
+  await closeSheet(eric, 'person-card');
 
   // Somebody with no contact info says so, kindly. Tapping a name in the list opens the card too.
-  await bob.tid('btn-names').click();
-  await bob.page.locator('.player', { hasText: 'Ann' }).first().click();
-  await card(bob).waitFor({ state: 'visible' });
-  await closeSheet(bob, 'person-card');
-  await openCard(ann, bob.id);
-  assert.match(await ann.tid('card-contact').innerText(), /has not added contact info/i);
-  await eventually(async () => assert.match(await ann.tid('card-plan').first().innerText(), /Joe's Tacos/), { message: "Bob's card lists the flag he joined" });
+  await eric.tid('btn-names').click();
+  await eric.page.locator('.player', { hasText: 'Breeca' }).first().click();
+  await card(eric).waitFor({ state: 'visible' });
+  await closeSheet(eric, 'person-card');
+  await openCard(breeca, eric.id);
+  assert.match(await breeca.tid('card-contact').innerText(), /has not added contact info/i);
+  await eventually(async () => assert.match(await breeca.tid('card-plan').first().innerText(), /Joe's Tacos/), { message: "Eric's card lists the flag Eric joined" });
 
   // A pin on the map opens the card as well.
-  await closeSheet(ann, 'person-card');
-  await ann.page.locator(`.pin[data-player-id="${bob.id}"]`).dispatchEvent('click');
-  await card(ann).waitFor({ state: 'visible' });
-  assert.match(await ann.tid('card-name').innerText(), /^Bob$/i);
+  await closeSheet(breeca, 'person-card');
+  await breeca.page.locator(`.pin[data-player-id="${eric.id}"]`).dispatchEvent('click');
+  await card(breeca).waitFor({ state: 'visible' });
+  assert.match(await breeca.tid('card-name').innerText(), /^Eric$/i);
 
   // The contact line is plain text only: markup stays markup.
-  await closeSheet(ann, 'person-card');
-  await openCard(bob, bob.id);
-  await bob.tid('card-contact-input').fill('<img src=x onerror=alert(1)> javascript:alert(1)');
-  await bob.tid('btn-card-save').click();
-  await closeSheet(bob, 'person-card');
-  await openCard(ann, bob.id);
-  await eventually(async () => assert.match(await ann.tid('card-contact').innerText(), /<img/), { message: 'shown as text' });
-  assert.equal(await ann.tid('card-contact').locator('img').count(), 0, 'no element was created from it');
-  assert.equal(await ann.tid('card-contact-link').count(), 0, 'and it is not turned into a link');
+  await closeSheet(breeca, 'person-card');
+  await openCard(eric, eric.id);
+  await eric.tid('card-contact-input').fill('<img src=x onerror=alert(1)> javascript:alert(1)');
+  await eric.tid('btn-card-save').click();
+  await closeSheet(eric, 'person-card');
+  await openCard(breeca, eric.id);
+  await eventually(async () => assert.match(await breeca.tid('card-contact').innerText(), /<img/), { message: 'shown as text' });
+  assert.equal(await breeca.tid('card-contact').locator('img').count(), 0, 'no element was created from it');
+  assert.equal(await breeca.tid('card-contact-link').count(), 0, 'and it is not turned into a link');
 
-  ann.assertNoErrors();
-  bob.assertNoErrors();
+  breeca.assertNoErrors();
+  eric.assertNoErrors();
 });
 
-scenario('16. no thanks and suggest somewhere else: Bob says no and proposes, Ann is told and can plan it', async (s) => {
-  const ann = await s.player('Ann', SPOTS.ann);
-  const bob = await s.player('Bob', SPOTS.bob, { roomUrl: ann.roomUrl });
-  await Promise.all([waitForCrew(ann, 2), waitForCrew(bob, 2)]);
-  await createPlan(ann, { kind: 'lunch', place: "Joe's Tacos", ping: true });
-  await eventually(async () => assert.match((await toast(bob, 'ping').allInnerTexts()).join(' '), /Joe's Tacos/), { message: 'ping toast on Bob' });
+scenario('16. no thanks and suggest somewhere else: Eric says no and proposes, Breeca is told and can plan it', async (s) => {
+  const breeca = await s.player('Breeca', SPOTS.breeca);
+  const eric = await s.player('Eric', SPOTS.eric, { roomUrl: breeca.roomUrl });
+  await Promise.all([waitForCrew(breeca, 2), waitForCrew(eric, 2)]);
+  await createPlan(breeca, { kind: 'lunch', place: "Joe's Tacos", ping: true });
+  await eventually(async () => assert.match((await toast(eric, 'ping').allInnerTexts()).join(' '), /Joe's Tacos/), { message: 'ping toast on Eric' });
 
   // The toast has all the answers.
   for (const id of ['btn-toast-join', 'btn-toast-decline', 'btn-toast-suggest', 'btn-toast-show']) {
-    assert.equal(await bob.tid(id).count(), 1, id);
+    assert.equal(await eric.tid(id).count(), 1, id);
   }
-  await bob.tid('btn-toast-decline').click();
+  await eric.tid('btn-toast-decline').click();
   await eventually(async () => {
-    await openPlans(ann);
-    assert.match(await ann.tid('plan-declined').first().innerText(), /1 said no thanks/);
-  }, { message: 'Ann sees one no thanks' });
+    await openPlans(breeca);
+    assert.match(await breeca.tid('plan-declined').first().innerText(), /1 said no thanks/);
+  }, { message: 'Breeca sees one no thanks' });
 
-  // Bob suggests somewhere else from the plan card.
-  await openPlans(bob);
-  assert.equal(await bob.tid('btn-plan-decline').count(), 0, 'already said no thanks');
-  await bob.tid('btn-plan-suggest').click();
-  await bob.tid('suggest-sheet').waitFor({ state: 'visible' });
-  await bob.tid('suggest-place').fill('Blue Bottle');
-  await bob.tid('suggest-note').fill('shorter line');
-  await bob.tid('btn-suggest-send').click();
+  // Eric suggests somewhere else from the plan card.
+  await openPlans(eric);
+  assert.equal(await eric.tid('btn-plan-decline').count(), 0, 'already said no thanks');
+  await eric.tid('btn-plan-suggest').click();
+  await eric.tid('suggest-sheet').waitFor({ state: 'visible' });
+  await eric.tid('suggest-place').fill('Blue Bottle');
+  await eric.tid('suggest-note').fill('shorter line');
+  await eric.tid('btn-suggest-send').click();
 
-  // Ann is told, with a button to plan it.
-  await eventually(async () => assert.match((await ann.tid('toast').allInnerTexts()).join(' '), /Bob suggests Blue Bottle/), { message: 'Ann is told about the idea' });
-  await ann.tid('btn-toast-action').click();
-  await eventually(async () => assert.ok((await ann.tid('drop-banner').isVisible()) || (await ann.tid('plan-form').isVisible())), { message: 'the flag step opens' });
-  if (await ann.tid('drop-banner').isVisible()) await ann.tid('btn-drop-here').click();
-  await ann.tid('plan-form').waitFor({ state: 'visible' });
-  assert.equal(await ann.tid('plan-place').inputValue(), 'Blue Bottle', 'prefilled with the idea');
+  // Breeca is told, with a button to plan it.
+  await eventually(async () => assert.match((await breeca.tid('toast').allInnerTexts()).join(' '), /Eric suggests Blue Bottle/), { message: 'Breeca is told about the idea' });
+  await breeca.tid('btn-toast-action').click();
+  await eventually(async () => assert.ok((await breeca.tid('drop-banner').isVisible()) || (await breeca.tid('plan-form').isVisible())), { message: 'the flag step opens' });
+  if (await breeca.tid('drop-banner').isVisible()) await breeca.tid('btn-drop-here').click();
+  await breeca.tid('plan-form').waitFor({ state: 'visible' });
+  assert.equal(await breeca.tid('plan-place').inputValue(), 'Blue Bottle', 'prefilled with the idea');
 
   // The idea also shows on the card for everyone.
-  await ann.page.keyboard.press('Escape').catch(() => {});
-  await openPlans(bob).catch(() => {});
+  await breeca.page.keyboard.press('Escape').catch(() => {});
+  await openPlans(eric).catch(() => {});
   await eventually(async () => {
-    await openSheet(bob, 'btn-plans', 'plans-panel');
-    assert.match(await bob.tid('plan-suggestion').first().innerText(), /Bob.*Blue Bottle.*shorter line/);
+    await openSheet(eric, 'btn-plans', 'plans-panel');
+    assert.match(await eric.tid('plan-suggestion').first().innerText(), /Eric.*Blue Bottle.*shorter line/);
   }, { message: 'the idea is listed on the plan' });
 
-  ann.assertNoErrors();
-  bob.assertNoErrors();
+  breeca.assertNoErrors();
+  eric.assertNoErrors();
 });
 
 scenario('15b. edit my own name and contact on my card; everyone sees the new name, and a reload keeps it', async (s) => {
-  const ann = await s.player('Ann', SPOTS.ann);
-  const bob = await s.player('Bob', SPOTS.bob, { roomUrl: ann.roomUrl });
-  await Promise.all([waitForCrew(ann, 2), waitForCrew(bob, 2)]);
+  const breeca = await s.player('Breeca', SPOTS.breeca);
+  const eric = await s.player('Eric', SPOTS.eric, { roomUrl: breeca.roomUrl });
+  await Promise.all([waitForCrew(breeca, 2), waitForCrew(eric, 2)]);
 
-  await openCard(ann, ann.id);
-  assert.equal(await ann.tid('card-name-input').inputValue(), 'Ann');
-  assert.equal(await ann.tid('btn-card-save').isDisabled(), true, 'nothing to save yet');
-  await ann.tid('card-name-input').fill('Annie');
-  await ann.tid('card-contact-input').fill('+1 310 555 0100');
-  assert.equal(await ann.tid('btn-card-save').isDisabled(), false);
-  await ann.tid('card-name-input').fill('   ');
-  assert.equal(await ann.tid('btn-card-save').isDisabled(), true, 'an empty name cannot be saved');
-  await ann.tid('card-name-input').fill('Annie');
-  await ann.tid('btn-card-save').click();
-  await eventually(() => assert.ok(ann.sent.some((m) => m.t === 'profile' && m.name === 'Annie')), { message: 'rename sent' });
-  await eventually(() => assert.ok(ann.sent.some((m) => m.t === 'contact' && m.text === '+1 310 555 0100')), { message: 'contact sent' });
-  await closeSheet(ann, 'person-card');
+  await openCard(breeca, breeca.id);
+  assert.equal(await breeca.tid('card-name-input').inputValue(), 'Breeca');
+  assert.equal(await breeca.tid('btn-card-save').isDisabled(), true, 'nothing to save yet');
+  await breeca.tid('card-name-input').fill('Bree');
+  await breeca.tid('card-contact-input').fill('+1 310 555 0100');
+  assert.equal(await breeca.tid('btn-card-save').isDisabled(), false);
+  await breeca.tid('card-name-input').fill('   ');
+  assert.equal(await breeca.tid('btn-card-save').isDisabled(), true, 'an empty name cannot be saved');
+  await breeca.tid('card-name-input').fill('Bree');
+  await breeca.tid('btn-card-save').click();
+  await eventually(() => assert.ok(breeca.sent.some((m) => m.t === 'profile' && m.name === 'Bree')), { message: 'rename sent' });
+  await eventually(() => assert.ok(breeca.sent.some((m) => m.t === 'contact' && m.text === '+1 310 555 0100')), { message: 'contact sent' });
+  await closeSheet(breeca, 'person-card');
 
-  // Bob sees the new name on her avatar and on her card, and her number is a call link.
+  // Eric sees the new name on Breeca's avatar and card, and the number is a call link.
   await eventually(async () => {
-    const label = await bob.page.locator(`[data-testid="crew-avatar"][data-player-id="${ann.id}"]`).getAttribute('aria-label');
-    assert.match(label ?? '', /Annie/);
-  }, { message: "Ann's avatar label is Annie" });
-  await openCard(bob, ann.id);
-  await eventually(async () => assert.match(await bob.tid('card-name').innerText(), /^annie$/i), { message: 'new name on the card' });
-  await eventually(async () => assert.equal(await bob.tid('card-contact-link').getAttribute('href'), 'tel:+13105550100'), { message: 'tap to call' });
-  await closeSheet(bob, 'person-card');
+    const label = await eric.page.locator(`[data-testid="crew-avatar"][data-player-id="${breeca.id}"]`).getAttribute('aria-label');
+    assert.match(label ?? '', /Bree/);
+  }, { message: "Breeca's avatar label is Bree" });
+  await openCard(eric, breeca.id);
+  await eventually(async () => assert.match(await eric.tid('card-name').innerText(), /^bree$/i), { message: 'new name on the card' });
+  await eventually(async () => assert.equal(await eric.tid('card-contact-link').getAttribute('href'), 'tel:+13105550100'), { message: 'tap to call' });
+  await closeSheet(eric, 'person-card');
 
   // A reload resumes the same player with the new name and contact line.
-  await ann.page.reload();
-  await waitForCrew(ann, 2);
-  await openCard(ann, ann.id);
-  assert.equal(await ann.tid('card-name-input').inputValue(), 'Annie', 'the name survived the reload');
-  assert.equal(await ann.tid('card-contact-input').inputValue(), '+1 310 555 0100', 'and so did the contact line');
+  await breeca.page.reload();
+  await waitForCrew(breeca, 2);
+  await openCard(breeca, breeca.id);
+  assert.equal(await breeca.tid('card-name-input').inputValue(), 'Bree', 'the name survived the reload');
+  assert.equal(await breeca.tid('card-contact-input').inputValue(), '+1 310 555 0100', 'and so did the contact line');
 
-  ann.assertNoErrors();
-  bob.assertNoErrors();
+  breeca.assertNoErrors();
+  eric.assertNoErrors();
 });

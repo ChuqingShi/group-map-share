@@ -33,14 +33,14 @@ test('players see each other join and move', () => {
   const room = reg.create()!;
   const ca = fakeConn();
   const cb = fakeConn();
-  const a = reg.join(room, ca, { name: 'Ann', avatar: '🦊', color: '#ff5d73' });
-  const b = reg.join(room, cb, { name: 'Bob', avatar: '🐸', color: '#3ddc84' });
+  const a = reg.join(room, ca, { name: 'Breeca', avatar: '🦊', color: '#ff5d73' });
+  const b = reg.join(room, cb, { name: 'Eric', avatar: '🐸', color: '#3ddc84' });
   assert.ok('id' in a && 'id' in b);
 
   const welcomeB = cb.inbox[0];
   assert.equal(welcomeB.t, 'welcome');
   assert.equal(welcomeB.t === 'welcome' && welcomeB.players.length, 2);
-  assert.ok(ca.inbox.some((m) => m.t === 'player' && m.player.name === 'Bob'));
+  assert.ok(ca.inbox.some((m) => m.t === 'player' && m.player.name === 'Eric'));
 
   tick(200);
   reg.updatePosition(room, a.id, 51.5, -0.12, 8);

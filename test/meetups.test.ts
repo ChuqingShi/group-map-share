@@ -41,8 +41,8 @@ const errorsIn = (c: { inbox: ServerMsg[] }) => c.inbox.flatMap((m) => (m.t === 
 
 test('moods are set, cleared, validated and go stale', () => {
   const { reg, room, join, tick } = setup();
-  const a = join('Ann');
-  const b = join('Bob');
+  const a = join('Breeca');
+  const b = join('Eric');
   reg.setMood(room, a.id, 'hungry', '  tacos?\n ');
   assert.deepEqual(room.members.get(a.id)!.player.mood?.id, 'hungry');
   assert.equal(room.members.get(a.id)!.player.mood?.note, 'tacos?');
@@ -62,8 +62,8 @@ test('moods are set, cleared, validated and go stale', () => {
 
 test('typed moods: any short text, any emoji or none, nothing smuggled in as an emoji', () => {
   const { reg, room, join, tick } = setup();
-  const a = join('Ann');
-  const b = join('Bob');
+  const a = join('Breeca');
+  const b = join('Eric');
   const mood = () => room.members.get(a.id)!.player.mood;
   reg.setMood(room, a.id, 'custom', '', '🌮', '  Dreaming of tacos \n ');
   assert.deepEqual({ id: mood()?.id, emoji: mood()?.emoji, label: mood()?.label }, { id: 'custom', emoji: '🌮', label: 'Dreaming of tacos' });
@@ -148,59 +148,59 @@ test('a resumed player keeps their organizer choice unless the new hello says ot
 
 test('renaming the event: anyone, unless an organizer exists; cleaned, bounded, and everyone is told', () => {
   const { reg, room, join, tick } = setup();
-  const ann = join('Ann');
-  const bob = join('Bob');
-  reg.renameRoom(room, bob.id, '  Team\u0000 lunch  ');
+  const breeca = join('Breeca');
+  const eric = join('Eric');
+  reg.renameRoom(room, eric.id, '  Team\u0000 lunch  ');
   assert.equal(room.name, 'Team lunch');
-  assert.ok(ann.conn.inbox.some((m) => m.t === 'room' && m.name === 'Team lunch'), 'the crew is told');
-  reg.renameRoom(room, ann.id, '   ');
-  reg.renameRoom(room, ann.id, 7);
+  assert.ok(breeca.conn.inbox.some((m) => m.t === 'room' && m.name === 'Team lunch'), 'the crew is told');
+  reg.renameRoom(room, breeca.id, '   ');
+  reg.renameRoom(room, breeca.id, 7);
   reg.renameRoom(room, 'nobody', 'x');
   assert.equal(room.name, 'Team lunch', 'empty and non-string names are ignored');
-  reg.renameRoom(room, ann.id, 'y'.repeat(100));
+  reg.renameRoom(room, breeca.id, 'y'.repeat(100));
   assert.equal([...room.name].length, 40, 'capped like a creation name');
   tick(1);
-  reg.setOrganizer(room, ann.id, true);
-  reg.renameRoom(room, bob.id, 'Bob takes over');
-  assert.equal(errorsIn(bob.conn).at(-1), 'organizers_only');
+  reg.setOrganizer(room, breeca.id, true);
+  reg.renameRoom(room, eric.id, 'Eric takes over');
+  assert.equal(errorsIn(eric.conn).at(-1), 'organizers_only');
   assert.equal([...room.name].length, 40, 'unchanged');
-  reg.renameRoom(room, ann.id, 'Organizer says');
+  reg.renameRoom(room, breeca.id, 'Organizer says');
   assert.equal(room.name, 'Organizer says');
 });
 
 test('renaming: cleaned like a join name, empty or non-string ignored, others are told', () => {
   const { reg, room, join } = setup();
-  const ann = join('Ann');
-  const bob = join('Bob');
-  const name = () => room.members.get(ann.id)!.player.name;
-  reg.setName(room, ann.id, '  Anna\u0000 Maria ');
+  const breeca = join('Breeca');
+  const eric = join('Eric');
+  const name = () => room.members.get(breeca.id)!.player.name;
+  reg.setName(room, breeca.id, '  Anna\u0000 Maria ');
   assert.equal(name(), 'Anna Maria');
-  const seen = bob.conn.inbox.findLast((m) => m.t === 'player' && m.player.id === ann.id);
+  const seen = eric.conn.inbox.findLast((m) => m.t === 'player' && m.player.id === breeca.id);
   assert.equal(seen?.t === 'player' && seen.player.name, 'Anna Maria');
-  reg.setName(room, ann.id, '   ');
-  reg.setName(room, ann.id, 7);
-  reg.setName(room, ann.id, null);
+  reg.setName(room, breeca.id, '   ');
+  reg.setName(room, breeca.id, 7);
+  reg.setName(room, breeca.id, null);
   reg.setName(room, 'nobody', 'x');
   assert.equal(name(), 'Anna Maria', 'ignored');
-  reg.setName(room, ann.id, 'x'.repeat(100));
+  reg.setName(room, breeca.id, 'x'.repeat(100));
   assert.equal([...name()].length, 24, 'capped like a join name');
-  reg.setName(room, ann.id, '\u3164\u2800');
+  reg.setName(room, breeca.id, '\u3164\u2800');
   assert.equal(name(), 'Player', 'only invisible characters: becomes the default name');
 });
 
 test('contact cards: a short plain text line, set at join or later, cleared with an empty string, bounded and clean', () => {
   const { reg, room, join } = setup();
   const conn = fakeConn();
-  const r = reg.join(room, conn, { name: 'Ann', avatar: '🦊', color: '#ff5d73', contact: '  +1 310 555 0100 \n ' }) as { id: string };
-  const bob = join('Bob');
+  const r = reg.join(room, conn, { name: 'Breeca', avatar: '🦊', color: '#ff5d73', contact: '  +1 310 555 0100 \n ' }) as { id: string };
+  const eric = join('Eric');
   const card = () => room.members.get(r.id)!.player.contact;
   assert.equal(card(), '+1 310 555 0100', 'from the join form, cleaned');
-  assert.equal(room.members.get(bob.id)!.player.contact, '', 'empty by default');
+  assert.equal(room.members.get(eric.id)!.player.contact, '', 'empty by default');
 
-  reg.setContact(room, r.id, 'ann@example.com');
-  assert.equal(card(), 'ann@example.com');
-  const seen = bob.conn.inbox.findLast((m) => m.t === 'player' && m.player.id === r.id);
-  assert.equal(seen?.t === 'player' && seen.player.contact, 'ann@example.com', 'the crew is told');
+  reg.setContact(room, r.id, 'breeca@example.com');
+  assert.equal(card(), 'breeca@example.com');
+  const seen = eric.conn.inbox.findLast((m) => m.t === 'player' && m.player.id === r.id);
+  assert.equal(seen?.t === 'player' && seen.player.contact, 'breeca@example.com', 'the crew is told');
 
   reg.setContact(room, r.id, 'x'.repeat(500));
   assert.equal([...card()].length, 80, 'capped');
@@ -215,16 +215,16 @@ test('contact cards: a short plain text line, set at join or later, cleared with
   // A resume without the field keeps it; with the field replaces it.
   reg.setContact(room, r.id, 'keep me');
   const token = (conn.inbox[0] as Extract<ServerMsg, { t: 'welcome' }>).token;
-  reg.join(room, fakeConn(), { name: 'Ann', avatar: '🦊', color: '#ff5d73', token });
+  reg.join(room, fakeConn(), { name: 'Breeca', avatar: '🦊', color: '#ff5d73', token });
   assert.equal(card(), 'keep me');
-  reg.join(room, fakeConn(), { name: 'Ann', avatar: '🦊', color: '#ff5d73', token, contact: 'new one' });
+  reg.join(room, fakeConn(), { name: 'Breeca', avatar: '🦊', color: '#ff5d73', token, contact: 'new one' });
   assert.equal(card(), 'new one');
 });
 
 test('a plan starts with its creator joined and is broadcast with the name frozen in', () => {
   const { reg, room, join } = setup();
   const a = join('Eric');
-  const b = join('Bob');
+  const b = join('Breeca');
   const plan = reg.createPlan(room, a.id, { ...lunch, note: 'my treat' })!;
   assert.deepEqual(plan.joined, [a.id]);
   assert.equal(plan.byName, 'Eric');
@@ -239,8 +239,8 @@ test('a plan starts with its creator joined and is broadcast with the name froze
 
 test('bad plans are refused with an error to the sender only', () => {
   const { reg, room, join } = setup();
-  const a = join('Ann');
-  const b = join('Bob');
+  const a = join('Breeca');
+  const b = join('Eric');
   assert.equal(reg.createPlan(room, a.id, { ...lunch, kind: 'brunch' }), null);
   assert.equal(reg.createPlan(room, a.id, { ...lunch, place: '   ' }), null);
   assert.equal(reg.createPlan(room, a.id, { ...lunch, lat: 123 }), null);
@@ -255,14 +255,14 @@ test('place text is cleaned and capped', () => {
   assert.equal(cleanText('  Joe\u0000​’s \n Tacos ', 40), 'Joe’s Tacos');
   assert.equal(cleanText(42, 40), '');
   const { reg, room, join } = setup();
-  const a = join('Ann');
+  const a = join('Breeca');
   const plan = reg.createPlan(room, a.id, { ...lunch, place: 'x'.repeat(500) })!;
   assert.equal([...plan.place].length, PLACE_MAX);
 });
 
 test('plans are limited per player and per room, and creation is throttled', () => {
   const { reg, room, join, tick } = setup();
-  const a = join('Ann');
+  const a = join('Breeca');
   for (let i = 0; i < MAX_PLANS_PER_PLAYER; i++) {
     tick(150);
     assert.ok(reg.createPlan(room, a.id, lunch), `plan ${i + 1}`);
@@ -271,7 +271,7 @@ test('plans are limited per player and per room, and creation is throttled', () 
   assert.equal(reg.createPlan(room, a.id, lunch), null);
   assert.equal(errorsIn(a.conn).at(-1), 'plan_limit');
 
-  const b = join('Bob');
+  const b = join('Eric');
   tick(150);
   assert.ok(reg.createPlan(room, b.id, lunch));
   assert.equal(reg.createPlan(room, b.id, lunch), null, 'second plan inside the throttle window');
@@ -280,8 +280,8 @@ test('plans are limited per player and per room, and creation is throttled', () 
 
 test('people opt in and out of a plan; only the creator can cancel it', () => {
   const { reg, room, join, tick } = setup();
-  const a = join('Ann');
-  const b = join('Bob');
+  const a = join('Breeca');
+  const b = join('Eric');
   tick(150);
   const plan = reg.createPlan(room, a.id, lunch)!;
   reg.joinPlan(room, b.id, plan.id);
@@ -300,22 +300,22 @@ test('people opt in and out of a plan; only the creator can cancel it', () => {
 
 test('no thanks and suggest something else: anyone can, the creator cannot on their own plan, and it is bounded', () => {
   const { reg, room, join, tick } = setup();
-  const ann = join('Ann');
-  const bob = join('Bob');
+  const breeca = join('Breeca');
+  const eric = join('Eric');
   const cy = join('Cy');
   tick(200);
-  const plan = reg.createPlan(room, ann.id, { ...lunch, ping: true })!;
-  reg.joinPlan(room, bob.id, plan.id);
+  const plan = reg.createPlan(room, breeca.id, { ...lunch, ping: true })!;
+  reg.joinPlan(room, eric.id, plan.id);
   const p = () => room.plans.get(plan.id)!;
 
-  reg.declinePlan(room, bob.id, plan.id);
-  assert.deepEqual(p().joined, [ann.id], 'no thanks removes them from I am in');
-  assert.deepEqual(p().declined, [bob.id]);
-  reg.declinePlan(room, bob.id, plan.id); // twice is fine
-  assert.deepEqual(p().declined, [bob.id]);
-  reg.declinePlan(room, ann.id, plan.id);
-  assert.deepEqual(p().declined, [bob.id], 'the creator cancels instead of declining');
-  reg.joinPlan(room, bob.id, plan.id);
+  reg.declinePlan(room, eric.id, plan.id);
+  assert.deepEqual(p().joined, [breeca.id], 'no thanks removes them from I am in');
+  assert.deepEqual(p().declined, [eric.id]);
+  reg.declinePlan(room, eric.id, plan.id); // twice is fine
+  assert.deepEqual(p().declined, [eric.id]);
+  reg.declinePlan(room, breeca.id, plan.id);
+  assert.deepEqual(p().declined, [eric.id], 'the creator cancels instead of declining');
+  reg.joinPlan(room, eric.id, plan.id);
   assert.deepEqual(p().declined, [], 'changing your mind clears the no thanks');
 
   tick(600);
@@ -323,49 +323,49 @@ test('no thanks and suggest something else: anyone can, the creator cannot on th
   assert.equal(p().suggestions.length, 1);
   assert.deepEqual({ place: p().suggestions[0].place, note: p().suggestions[0].note, by: p().suggestions[0].by, name: p().suggestions[0].byName }, { place: 'Blue Bottle', note: 'closer to the pier', by: cy.id, name: 'Cy' });
   assert.ok(p().declined.includes(cy.id), 'suggesting something else counts as not this one');
-  assert.ok(bob.conn.inbox.some((m) => m.t === 'plan' && m.plan.suggestions.length === 1), 'everyone sees it');
+  assert.ok(eric.conn.inbox.some((m) => m.t === 'plan' && m.plan.suggestions.length === 1), 'everyone sees it');
 
   tick(600);
   reg.suggestPlan(room, cy.id, plan.id, 'The Rooftop', '');
   assert.equal(p().suggestions.length, 1, 'one suggestion per person: a new one replaces the old');
   assert.equal(p().suggestions[0].place, 'The Rooftop');
-  reg.suggestPlan(room, ann.id, plan.id, 'My own plan', ''); // creator suggesting on their own plan: ignored
+  reg.suggestPlan(room, breeca.id, plan.id, 'My own plan', ''); // creator suggesting on their own plan: ignored
   assert.equal(p().suggestions.length, 1);
   tick(600);
-  reg.suggestPlan(room, bob.id, plan.id, '   ', '');
-  assert.equal(errorsIn(bob.conn).at(-1), 'bad_plan', 'empty place is refused');
-  reg.suggestPlan(room, bob.id, 'nope', 'x', '');
-  reg.declinePlan(room, bob.id, 7);
+  reg.suggestPlan(room, eric.id, plan.id, '   ', '');
+  assert.equal(errorsIn(eric.conn).at(-1), 'bad_plan', 'empty place is refused');
+  reg.suggestPlan(room, eric.id, 'nope', 'x', '');
+  reg.declinePlan(room, eric.id, 7);
 
   tick(600);
-  reg.suggestPlan(room, bob.id, plan.id, 'Taco Truck', '');
+  reg.suggestPlan(room, eric.id, plan.id, 'Taco Truck', '');
   assert.equal(p().suggestions.length, 2);
-  reg.suggestPlan(room, bob.id, plan.id, 'Too fast', '');
-  assert.equal(errorsIn(bob.conn).at(-1), 'slow_down', 'rate limited like thought bubbles');
-  assert.equal(p().suggestions.find((x) => x.by === bob.id)?.place, 'Taco Truck', 'the too-fast one did not replace it');
+  reg.suggestPlan(room, eric.id, plan.id, 'Too fast', '');
+  assert.equal(errorsIn(eric.conn).at(-1), 'slow_down', 'rate limited like thought bubbles');
+  assert.equal(p().suggestions.find((x) => x.by === eric.id)?.place, 'Taco Truck', 'the too-fast one did not replace it');
 
   reg.leave(room, cy.id);
-  assert.deepEqual(p().suggestions.map((x) => x.by), [bob.id], 'a suggestion goes with the person who made it');
+  assert.deepEqual(p().suggestions.map((x) => x.by), [eric.id], 'a suggestion goes with the person who made it');
   assert.ok(!p().declined.includes(cy.id));
 });
 
 test('when a player leaves, their plans vanish and they drop out of others', () => {
   const { reg, room, join, tick } = setup();
-  const a = join('Ann');
-  const b = join('Bob');
+  const a = join('Breeca');
+  const b = join('Eric');
   tick(150);
   const mine = reg.createPlan(room, a.id, lunch)!;
   tick(150);
-  const bobs = reg.createPlan(room, b.id, { ...lunch, place: 'Bar' })!;
-  reg.joinPlan(room, a.id, bobs.id);
+  const erics = reg.createPlan(room, b.id, { ...lunch, place: 'Bar' })!;
+  reg.joinPlan(room, a.id, erics.id);
   reg.leave(room, a.id);
   assert.equal(room.plans.has(mine.id), false);
-  assert.deepEqual(room.plans.get(bobs.id)!.joined, [b.id]);
+  assert.deepEqual(room.plans.get(erics.id)!.joined, [b.id]);
 });
 
 test('plans expire', () => {
   const { reg, room, join, tick } = setup();
-  const a = join('Ann');
+  const a = join('Breeca');
   tick(150);
   reg.createPlan(room, a.id, lunch);
   tick(5100);
@@ -376,7 +376,7 @@ test('plans expire', () => {
 test('a ping reaches everyone except the creator, only the creator can send it, and it is rate limited', () => {
   const { reg, room, join, tick } = setup();
   const a = join('Eric');
-  const b = join('Bob');
+  const b = join('Breeca');
   const c = join('Cy');
   tick(150);
   const plan = reg.createPlan(room, a.id, { ...lunch, ping: true })!;
@@ -463,7 +463,7 @@ test('names made only of invisible characters become the default name', () => {
 test('a plan created during the ping cooldown still exists but is not announced', () => {
   const { reg, room, join, tick } = setup();
   const a = join('Eric');
-  const b = join('Bob');
+  const b = join('Breeca');
   tick(150);
   reg.createPlan(room, a.id, { ...lunch, ping: true });
   tick(150);
@@ -475,8 +475,8 @@ test('a plan created during the ping cooldown still exists but is not announced'
 
 test('thought bubbles are cleaned, capped, rate limited and sent to everyone including the sender', () => {
   const { reg, room, join, tick } = setup();
-  const a = join('Ann');
-  const b = join('Bob');
+  const a = join('Breeca');
+  const b = join('Eric');
   const bubbles = (c: { inbox: ServerMsg[] }) => c.inbox.filter((m) => m.t === 'bubble') as Extract<ServerMsg, { t: 'bubble' }>[];
   reg.say(room, a.id, '🍔', '  Lunch\u0000 time!  ');
   assert.equal(bubbles(a.conn).length, 1, 'sender sees their own bubble too');
@@ -520,8 +520,8 @@ test('closing the app keeps you in the event for hours but forgets your location
   const room = reg.create('Lunch')!;
   const ca = fakeConn();
   const cb = fakeConn();
-  const a = reg.join(room, ca, { name: 'Ann', avatar: '🦊', color: '#ff5d73' }) as { id: string };
-  reg.join(room, cb, { name: 'Bob', avatar: '🐸', color: '#3ddc84' });
+  const a = reg.join(room, ca, { name: 'Breeca', avatar: '🦊', color: '#ff5d73' }) as { id: string };
+  reg.join(room, cb, { name: 'Eric', avatar: '🐸', color: '#3ddc84' });
   const token = (ca.inbox[0] as Extract<ServerMsg, { t: 'welcome' }>).token;
   now += 100;
   reg.updatePosition(room, a.id, 34, -118, 5);
@@ -534,18 +534,18 @@ test('closing the app keeps you in the event for hours but forgets your location
 
   now += 2 * 60_000; // 6 minutes offline
   reg.sweep();
-  const ann = room.members.get(a.id)!.player;
-  assert.equal(ann.pos, null, 'location forgotten');
-  assert.equal(ann.sharing, false);
-  assert.ok(room.plans.has(plan.id), 'her plan survives');
+  const breeca = room.members.get(a.id)!.player;
+  assert.equal(breeca.pos, null, 'location forgotten');
+  assert.equal(breeca.sharing, false);
+  assert.ok(room.plans.has(plan.id), 'the plan survives');
   const told = cb.inbox.findLast((m) => m.t === 'player' && m.player.id === a.id);
   assert.equal(told?.t === 'player' && told.player.pos, null, 'others were told');
 
-  now += 2 * 60 * 60_000; // two hours later she reopens the app
+  now += 2 * 60 * 60_000; // two hours later the app is reopened
   const cn = fakeConn();
-  const again = reg.join(room, cn, { name: 'Ann', avatar: '🦊', color: '#ff5d73', token }) as { id: string };
+  const again = reg.join(room, cn, { name: 'Breeca', avatar: '🦊', color: '#ff5d73', token }) as { id: string };
   assert.equal(again.id, a.id, 'same player resumed with the saved token');
-  assert.deepEqual(room.plans.get(plan.id)!.joined, [a.id], 'still going to her own plan');
+  assert.deepEqual(room.plans.get(plan.id)!.joined, [a.id], 'still going to their own plan');
 
   const cm = fakeConn();
   reg.disconnect(room, a.id, cn);
@@ -608,18 +608,18 @@ test('over a real socket: a ping arrives, and non-object JSON cannot kill the se
     };
 
     const eric = await open('Eric');
-    const bob = await open('Bob');
+    const breeca = await open('Breeca');
 
     // Garbage that is valid JSON but not an object used to throw inside the message handler.
     for (const junk of ['null', '7', '"hi"', '[]', 'true']) eric.ws.send(junk);
     eric.ws.send(JSON.stringify({ t: 'plan', kind: 'lunch', place: "Joe's Tacos", lat: 34.01, lng: -118.49, ping: true }));
 
-    const ping = (await bob.until((m) => m.t === 'ping')) as Extract<ServerMsg, { t: 'ping' }>;
+    const ping = (await breeca.until((m) => m.t === 'ping')) as Extract<ServerMsg, { t: 'ping' }>;
     assert.equal(ping.plan.place, "Joe's Tacos");
     assert.equal(ping.plan.byName, 'Eric');
     assert.equal(eric.inbox.some((m) => m.t === 'ping'), false);
 
-    bob.ws.send(JSON.stringify({ t: 'plan_join', id: ping.plan.id }));
+    breeca.ws.send(JSON.stringify({ t: 'plan_join', id: ping.plan.id }));
     const joined = (await eric.until((m) => m.t === 'plan' && m.plan.joined.length === 2)) as Extract<ServerMsg, { t: 'plan' }>;
     assert.equal(joined.plan.joined.length, 2);
     assert.equal(server.exitCode, null, `server died: ${stderr}`);

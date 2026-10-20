@@ -52,37 +52,37 @@ async function assertInsideViewport(p: Player, testids: string[], where: string,
 }
 
 scenario('8. phone 360x640: no sideways scroll, action bar buttons fully on screen, crew strip and plans panel fit', async (s) => {
-  const ann = await s.player('Ann', SPOTS.ann, { viewport: { width: 360, height: 640 } });
-  await waitForCrew(ann, 1);
+  const breeca = await s.player('Breeca', SPOTS.breeca, { viewport: { width: 360, height: 640 } });
+  await waitForCrew(breeca, 1);
 
   // A crowded room with long names makes the crew strip and names list as wide as they will ever be.
   const crowd = [];
   for (let i = 1; i <= 8; i++) {
-    const c = await s.raw(ann.roomId);
-    await c.hello(`Wanderer number ${i} with a long name`.slice(0, 24), SPOTS.bob);
+    const c = await s.raw(breeca.roomId);
+    await c.hello(`Wanderer number ${i} with a long name`.slice(0, 24), SPOTS.eric);
     crowd.push(c);
   }
-  await waitForCrew(ann, 9);
+  await waitForCrew(breeca, 9);
 
-  await assertNoHorizontalOverflow(ann, 'room with 9 people');
-  await assertInsideViewport(ann, ACTION_BAR, 'action bar');
-  await assertInsideViewport(ann, ['crew'], 'crew strip');
+  await assertNoHorizontalOverflow(breeca, 'room with 9 people');
+  await assertInsideViewport(breeca, ACTION_BAR, 'action bar');
+  await assertInsideViewport(breeca, ['crew'], 'crew strip');
 
   // The names list.
-  await ann.tid('btn-names').click();
-  await assertNoHorizontalOverflow(ann, 'names list open');
-  await assertInsideViewport(ann, ACTION_BAR, 'action bar with names list', true);
-  await ann.tid('btn-names').click();
+  await breeca.tid('btn-names').click();
+  await assertNoHorizontalOverflow(breeca, 'names list open');
+  await assertInsideViewport(breeca, ACTION_BAR, 'action bar with names list', true);
+  await breeca.tid('btn-names').click();
 
   // The plans panel, with a plan card full of long text.
-  await createPlan(ann, { kind: 'lunch', place: LONG_PLACE, note: LONG_NOTE, ping: false });
-  await openPlans(ann);
-  await eventually(async () => assert.equal(await ann.tid('plan-card').count(), 1), { message: 'plan card' });
-  await assertNoHorizontalOverflow(ann, 'plans panel with a plan');
-  await assertInsideViewport(ann, ['plans-panel'], 'plans panel');
-  await assertInsideViewport(ann, ACTION_BAR, 'action bar with plans panel', true); // the bar may hide while a sheet is open
+  await createPlan(breeca, { kind: 'lunch', place: LONG_PLACE, note: LONG_NOTE, ping: false });
+  await openPlans(breeca);
+  await eventually(async () => assert.equal(await breeca.tid('plan-card').count(), 1), { message: 'plan card' });
+  await assertNoHorizontalOverflow(breeca, 'plans panel with a plan');
+  await assertInsideViewport(breeca, ['plans-panel'], 'plans panel');
+  await assertInsideViewport(breeca, ACTION_BAR, 'action bar with plans panel', true); // the bar may hide while a sheet is open
   // The buttons inside the card must fit too.
-  const cardButtons = await ann.page.evaluate(() =>
+  const cardButtons = await breeca.page.evaluate(() =>
     [...document.querySelectorAll('[data-testid="plan-card"] button')].map((b) => {
       const r = b.getBoundingClientRect();
       return { label: (b.getAttribute('data-testid') ?? b.textContent ?? '').trim(), left: r.left, right: r.right, w: innerWidth };
@@ -91,7 +91,7 @@ scenario('8. phone 360x640: no sideways scroll, action bar buttons fully on scre
   for (const b of cardButtons) assert.ok(b.left >= -0.5 && b.right <= b.w + 0.5, `plan card button ${b.label} sticks out (${b.left}..${b.right} of ${b.w})`);
 
   for (const c of crowd) c.close();
-  ann.assertNoErrors();
+  breeca.assertNoErrors();
 });
 
 scenario('8b. phone 360x640: a long event name shrinks to fit, the top bar buttons never get pushed off screen', async (s) => {
@@ -101,10 +101,10 @@ scenario('8b. phone 360x640: a long event name shrinks to fit, the top bar butto
     body: JSON.stringify({ name: 'The very long name of our team lunch event' }),
   });
   const { id } = (await made.json()) as { id: string };
-  const ann = await s.player('Ann', SPOTS.ann, { viewport: { width: 360, height: 640 }, roomUrl: `${s.baseUrl}/r/${id}` });
-  await waitForCrew(ann, 1);
-  await eventually(async () => assert.match(await ann.tid('event-title').innerText(), /\S/), { message: 'event title shown' });
-  await assertNoHorizontalOverflow(ann, 'top bar with a long event name');
-  await assertInsideViewport(ann, ['btn-events', 'btn-settings', 'btn-invite'], 'top bar');
-  ann.assertNoErrors();
+  const breeca = await s.player('Breeca', SPOTS.breeca, { viewport: { width: 360, height: 640 }, roomUrl: `${s.baseUrl}/r/${id}` });
+  await waitForCrew(breeca, 1);
+  await eventually(async () => assert.match(await breeca.tid('event-title').innerText(), /\S/), { message: 'event title shown' });
+  await assertNoHorizontalOverflow(breeca, 'top bar with a long event name');
+  await assertInsideViewport(breeca, ['btn-events', 'btn-settings', 'btn-invite'], 'top bar');
+  breeca.assertNoErrors();
 });

@@ -22,150 +22,150 @@ const eventTitle = async (p: Player) => ((await p.tid('event-title').allInnerTex
 const joinFormVisible = (p: Player) => p.page.locator('[data-testid="join-form"], input[placeholder="e.g. Sam"]').first().isVisible();
 
 scenario('9a. event: the title shows name and count, and a reload resumes the same player with no join form', async (s) => {
-  const ann = await s.player('Ann', SPOTS.ann, { eventName: 'Beach day' });
-  await waitForCrew(ann, 1);
-  await eventually(async () => assert.match(await eventTitle(ann), /^Beach day\s*·\s*1$/i), { message: 'event title with one person' });
+  const breeca = await s.player('Breeca', SPOTS.breeca, { eventName: 'Beach day' });
+  await waitForCrew(breeca, 1);
+  await eventually(async () => assert.match(await eventTitle(breeca), /^Beach day\s*·\s*1$/i), { message: 'event title with one person' });
 
-  const bob = await s.player('Bob', SPOTS.bob, { roomUrl: ann.roomUrl });
-  await Promise.all([waitForCrew(ann, 2), waitForCrew(bob, 2)]);
-  await eventually(async () => assert.match(await eventTitle(ann), /^Beach day\s*·\s*2$/i), { message: 'event title with two people' });
-  await createPlan(ann, { kind: 'lunch', place: "Joe's Tacos", ping: false });
-  await eventually(async () => assert.equal(await bob.tid('plan-x').count(), 1), { message: 'Bob sees the plan' });
+  const eric = await s.player('Eric', SPOTS.eric, { roomUrl: breeca.roomUrl });
+  await Promise.all([waitForCrew(breeca, 2), waitForCrew(eric, 2)]);
+  await eventually(async () => assert.match(await eventTitle(breeca), /^Beach day\s*·\s*2$/i), { message: 'event title with two people' });
+  await createPlan(breeca, { kind: 'lunch', place: "Joe's Tacos", ping: false });
+  await eventually(async () => assert.equal(await eric.tid('plan-x').count(), 1), { message: 'Eric sees the plan' });
 
-  const idBefore = ann.id;
-  const formsBefore = ann.stats.joinFormsFilled;
-  await ann.reload();
+  const idBefore = breeca.id;
+  const formsBefore = breeca.stats.joinFormsFilled;
+  await breeca.reload();
 
-  assert.equal(ann.stats.joinFormsFilled, formsBefore, 'a reload must not show the join form again');
-  assert.equal(await joinFormVisible(ann), false);
-  assert.equal(ann.id, idBefore, 'same player after the reload');
-  await waitForCrew(ann, 2);
-  assert.ok((await crewIds(ann)).includes(idBefore), 'my crew avatar carries the same data-player-id');
-  await eventually(async () => assert.equal(await ann.tid('plan-x').count(), 1), { message: 'the plan is still there' });
-  await eventually(async () => assert.match(await eventTitle(ann), /^Beach day\s*·\s*2$/i), { message: 'event title after reload' });
-  await waitForCrew(bob, 2); // Bob still sees exactly two people, not a ghost of the old tab
-  ann.assertNoErrors();
-  bob.assertNoErrors();
+  assert.equal(breeca.stats.joinFormsFilled, formsBefore, 'a reload must not show the join form again');
+  assert.equal(await joinFormVisible(breeca), false);
+  assert.equal(breeca.id, idBefore, 'same player after the reload');
+  await waitForCrew(breeca, 2);
+  assert.ok((await crewIds(breeca)).includes(idBefore), 'my crew avatar carries the same data-player-id');
+  await eventually(async () => assert.equal(await breeca.tid('plan-x').count(), 1), { message: 'the plan is still there' });
+  await eventually(async () => assert.match(await eventTitle(breeca), /^Beach day\s*·\s*2$/i), { message: 'event title after reload' });
+  await waitForCrew(eric, 2); // Eric still sees exactly two people, not a ghost of the old tab
+  breeca.assertNoErrors();
+  eric.assertNoErrors();
 });
 
 scenario('9b. event: a new page auto-resumes the latest event, the list shows up via the event button', async (s) => {
-  const ann = await s.player('Ann', SPOTS.ann, { eventName: 'Beach day' });
-  await waitForCrew(ann, 1);
+  const breeca = await s.player('Breeca', SPOTS.breeca, { eventName: 'Beach day' });
+  await waitForCrew(breeca, 1);
 
   // A brand new tab in the same browser: straight back into the event, not the landing page.
-  const page2 = await ann.context.newPage();
+  const page2 = await breeca.context.newPage();
   try {
-    await page2.goto(`${s.baseUrl}/?sim=${SPOTS.ann[0]},${SPOTS.ann[1]}`, { waitUntil: 'domcontentloaded' });
-    await eventually(() => assert.match(page2.url(), new RegExp(`/r/${ann.roomId}`)), { message: 'new page resumes the latest event' });
+    await page2.goto(`${s.baseUrl}/?sim=${SPOTS.breeca[0]},${SPOTS.breeca[1]}`, { waitUntil: 'domcontentloaded' });
+    await eventually(() => assert.match(page2.url(), new RegExp(`/r/${breeca.roomId}`)), { message: 'new page resumes the latest event' });
     assert.equal(await page2.locator('[data-testid="events-list"]').count(), 0, 'no list on auto-resume');
 
     // From inside the event, the event button leads to the list without leaving the event.
     await page2.locator('[data-testid="btn-events"]').click();
-    await eventually(() => page2.locator(`[data-testid="event-card"][data-room-id="${ann.roomId}"]`).waitFor({ timeout: 500 }), {
+    await eventually(() => page2.locator(`[data-testid="event-card"][data-room-id="${breeca.roomId}"]`).waitFor({ timeout: 500 }), {
       message: 'the event is listed',
     });
-    assert.match(await page2.locator(`[data-testid="event-card"][data-room-id="${ann.roomId}"]`).innerText(), /Beach day/i);
+    assert.match(await page2.locator(`[data-testid="event-card"][data-room-id="${breeca.roomId}"]`).innerText(), /Beach day/i);
     // Tapping the card opens that event again.
-    await page2.locator(`[data-testid="event-card"][data-room-id="${ann.roomId}"]`).click();
-    await eventually(() => assert.match(page2.url(), new RegExp(`/r/${ann.roomId}`)), { message: 'card opens the room' });
+    await page2.locator(`[data-testid="event-card"][data-room-id="${breeca.roomId}"]`).click();
+    await eventually(() => assert.match(page2.url(), new RegExp(`/r/${breeca.roomId}`)), { message: 'card opens the room' });
   } finally {
     await page2.close().catch(() => {});
   }
 });
 
 scenario('9c. event: leaving (two taps) removes me and my plans for others, forgets the event and the old player', async (s) => {
-  const ann = await s.player('Ann', SPOTS.ann, { eventName: 'Leave test' });
-  const bob = await s.player('Bob', SPOTS.bob, { roomUrl: ann.roomUrl });
-  await Promise.all([waitForCrew(ann, 2), waitForCrew(bob, 2)]);
-  await createPlan(ann, { kind: 'coffee', place: 'Blue Bottle', ping: false });
-  await eventually(async () => assert.equal(await bob.tid('plan-x').count(), 1), { message: 'Bob sees the plan' });
+  const breeca = await s.player('Breeca', SPOTS.breeca, { eventName: 'Leave test' });
+  const eric = await s.player('Eric', SPOTS.eric, { roomUrl: breeca.roomUrl });
+  await Promise.all([waitForCrew(breeca, 2), waitForCrew(eric, 2)]);
+  await createPlan(breeca, { kind: 'coffee', place: 'Blue Bottle', ping: false });
+  await eventually(async () => assert.equal(await eric.tid('plan-x').count(), 1), { message: 'Eric sees the plan' });
 
   // The first tap only arms the button.
-  await openSettings(ann);
-  const leave = ann.tid('btn-leave');
+  await openSettings(breeca);
+  const leave = breeca.tid('btn-leave');
   await leave.click();
   assert.match(((await leave.getAttribute('aria-label')) ?? '') + ((await leave.textContent()) ?? ''), /sure|again/i, 'first tap arms the button');
-  assert.ok(!ann.sent.some((m) => m.t === 'leave'), 'one tap does not leave');
+  assert.ok(!breeca.sent.some((m) => m.t === 'leave'), 'one tap does not leave');
   await leave.click();
 
-  await eventually(() => assert.ok(bob.received.some((m) => m.t === 'left' && m.id === ann.id)), { message: 'Bob is told Ann left' });
-  await waitForCrew(bob, 1);
-  await eventually(async () => assert.equal(await bob.tid('plan-x').count(), 0), { message: "Ann's plan vanishes for Bob" });
+  await eventually(() => assert.ok(eric.received.some((m) => m.t === 'left' && m.id === breeca.id)), { message: 'Eric is told Breeca left' });
+  await waitForCrew(eric, 1);
+  await eventually(async () => assert.equal(await eric.tid('plan-x').count(), 0), { message: "Breeca's plan vanishes for Eric" });
 
-  // Her room link no longer resumes her: returning devices may skip the form, but she joins as a NEW player.
-  const oldId = ann.id;
-  await ann.joinNext(() => ann.page.goto(`${ann.roomUrl}?sim=${SPOTS.ann[0]},${SPOTS.ann[1]}`, { waitUntil: 'domcontentloaded' }).then(() => {}));
-  assert.notEqual(ann.id, oldId, 'leaving forgot my player: the link starts a new one');
-  await waitForCrew(bob, 2);
+  // The room link no longer resumes Breeca: returning devices may skip the form, but Breeca joins as a NEW player.
+  const oldId = breeca.id;
+  await breeca.joinNext(() => breeca.page.goto(`${breeca.roomUrl}?sim=${SPOTS.breeca[0]},${SPOTS.breeca[1]}`, { waitUntil: 'domcontentloaded' }).then(() => {}));
+  assert.notEqual(breeca.id, oldId, 'leaving forgot my player: the link starts a new one');
+  await waitForCrew(eric, 2);
   // Leave once more, then check the landing page no longer lists the event.
-  await leaveRoom(ann);
-  await ann.page.goto(`${s.baseUrl}/?sim=${SPOTS.ann[0]},${SPOTS.ann[1]}`, { waitUntil: 'domcontentloaded' });
-  await eventually(async () => assert.ok(await landingCreateButton(ann.page).isVisible()), { message: 'landing page' });
-  assert.ok(!(await eventCardIds(ann)).includes(ann.roomId), 'the event is forgotten');
-  bob.assertNoErrors();
+  await leaveRoom(breeca);
+  await breeca.page.goto(`${s.baseUrl}/?sim=${SPOTS.breeca[0]},${SPOTS.breeca[1]}`, { waitUntil: 'domcontentloaded' });
+  await eventually(async () => assert.ok(await landingCreateButton(breeca.page).isVisible()), { message: 'landing page' });
+  assert.ok(!(await eventCardIds(breeca)).includes(breeca.roomId), 'the event is forgotten');
+  eric.assertNoErrors();
 });
 
 scenario('9d. event: two events are listed at once and each opens its own room', async (s) => {
-  const ann = await s.player('Ann', SPOTS.ann, { eventName: 'Beach day' });
-  await waitForCrew(ann, 1);
-  const roomA = ann.roomId;
+  const breeca = await s.player('Breeca', SPOTS.breeca, { eventName: 'Beach day' });
+  await waitForCrew(breeca, 1);
+  const roomA = breeca.roomId;
 
   // Back to the list without leaving, then start a second event.
-  await ann.tid('btn-events').click();
-  await eventually(async () => assert.equal(await eventCards(ann).count(), 1), { message: 'first event listed' });
-  await ann.joinNext(async () => {
-    await ann.tid('event-name').fill('Dinner crew');
-    await landingCreateButton(ann.page).click();
+  await breeca.tid('btn-events').click();
+  await eventually(async () => assert.equal(await eventCards(breeca).count(), 1), { message: 'first event listed' });
+  await breeca.joinNext(async () => {
+    await breeca.tid('event-name').fill('Dinner crew');
+    await landingCreateButton(breeca.page).click();
   });
-  const roomB = ann.currentRoomId();
+  const roomB = breeca.currentRoomId();
   assert.ok(roomB && roomB !== roomA, 'a second room was created');
-  await waitForCrew(ann, 1);
-  await eventually(async () => assert.match(await eventTitle(ann), /^Dinner crew\s*·\s*1$/i), { message: 'title of the second event' });
+  await waitForCrew(breeca, 1);
+  await eventually(async () => assert.match(await eventTitle(breeca), /^Dinner crew\s*·\s*1$/i), { message: 'title of the second event' });
 
-  await ann.tid('btn-events').click();
-  await eventually(async () => assert.deepEqual((await eventCardIds(ann)).sort(), [roomA, roomB].sort()), { message: 'both events listed' });
-  const cardA = ann.page.locator(`[data-testid="event-card"][data-room-id="${roomA}"]`);
-  const cardB = ann.page.locator(`[data-testid="event-card"][data-room-id="${roomB}"]`);
+  await breeca.tid('btn-events').click();
+  await eventually(async () => assert.deepEqual((await eventCardIds(breeca)).sort(), [roomA, roomB].sort()), { message: 'both events listed' });
+  const cardA = breeca.page.locator(`[data-testid="event-card"][data-room-id="${roomA}"]`);
+  const cardB = breeca.page.locator(`[data-testid="event-card"][data-room-id="${roomB}"]`);
   assert.match(await cardA.innerText(), /Beach day/i);
   assert.match(await cardB.innerText(), /Dinner crew/i);
 
-  await ann.joinNext(() => cardA.click());
-  assert.equal(ann.currentRoomId(), roomA);
-  await eventually(async () => assert.match(await eventTitle(ann), /^Beach day/i), { message: 'back in the first event' });
+  await breeca.joinNext(() => cardA.click());
+  assert.equal(breeca.currentRoomId(), roomA);
+  await eventually(async () => assert.match(await eventTitle(breeca), /^Beach day/i), { message: 'back in the first event' });
 
-  await ann.tid('btn-events').click();
-  await ann.joinNext(() => ann.page.locator(`[data-testid="event-card"][data-room-id="${roomB}"]`).click());
-  assert.equal(ann.currentRoomId(), roomB);
-  await eventually(async () => assert.match(await eventTitle(ann), /^Dinner crew/i), { message: 'and in the second event' });
-  ann.assertNoErrors();
+  await breeca.tid('btn-events').click();
+  await breeca.joinNext(() => breeca.page.locator(`[data-testid="event-card"][data-room-id="${roomB}"]`).click());
+  assert.equal(breeca.currentRoomId(), roomB);
+  await eventually(async () => assert.match(await eventTitle(breeca), /^Dinner crew/i), { message: 'and in the second event' });
+  breeca.assertNoErrors();
 });
 
 scenario('9e. event: an event the server no longer has is dropped from the list', async (s) => {
-  const ann = await s.player('Ann', SPOTS.ann, { eventName: 'Short lived' });
-  await waitForCrew(ann, 1);
-  const roomId = ann.roomId;
+  const breeca = await s.player('Breeca', SPOTS.breeca, { eventName: 'Short lived' });
+  await waitForCrew(breeca, 1);
+  const roomId = breeca.roomId;
   assert.equal((await fetch(`${s.baseUrl}/api/rooms/${roomId}`)).status, 200);
 
   await s.server.restart(); // like a redeploy: every room is gone
   assert.equal((await fetch(`${s.baseUrl}/api/rooms/${roomId}`)).status, 404, 'the restarted server has no rooms');
 
   // Same tab, back to the root: the list is checked against the server.
-  await ann.page.goto(`${s.baseUrl}/?sim=${SPOTS.ann[0]},${SPOTS.ann[1]}`, { waitUntil: 'domcontentloaded' });
-  await eventually(async () => assert.ok(await landingCreateButton(ann.page).isVisible()), { message: 'landing page after restart' });
-  await eventually(async () => assert.ok(!(await eventCardIds(ann)).includes(roomId)), { message: 'dead event dropped from the list' });
+  await breeca.page.goto(`${s.baseUrl}/?sim=${SPOTS.breeca[0]},${SPOTS.breeca[1]}`, { waitUntil: 'domcontentloaded' });
+  await eventually(async () => assert.ok(await landingCreateButton(breeca.page).isVisible()), { message: 'landing page after restart' });
+  await eventually(async () => assert.ok(!(await eventCardIds(breeca)).includes(roomId)), { message: 'dead event dropped from the list' });
 });
 
 scenario('11. closing a page keeps the player in the event, greyed out for everyone else', async (s) => {
-  const ann = await s.player('Ann', SPOTS.ann);
-  const bob = await s.player('Bob', SPOTS.bob, { roomUrl: ann.roomUrl });
-  await Promise.all([waitForCrew(ann, 2), waitForCrew(bob, 2)]);
-  const bobId = bob.id;
+  const breeca = await s.player('Breeca', SPOTS.breeca);
+  const eric = await s.player('Eric', SPOTS.eric, { roomUrl: breeca.roomUrl });
+  await Promise.all([waitForCrew(breeca, 2), waitForCrew(eric, 2)]);
+  const ericId = eric.id;
 
-  await bob.page.close();
+  await eric.page.close();
 
-  await eventually(async () => assert.ok(await avatarOffline(ann, bobId)), { message: "Bob's avatar is greyed out for Ann" });
-  assert.ok(ann.received.some((m) => m.t === 'player' && m.player.id === bobId && !m.player.online), 'the server marked Bob offline');
-  assert.ok(!ann.received.some((m) => m.t === 'left' && m.id === bobId), 'Bob was not removed');
-  await waitForCrew(ann, 2);
-  ann.assertNoErrors();
+  await eventually(async () => assert.ok(await avatarOffline(breeca, ericId)), { message: "Eric's avatar is greyed out for Breeca" });
+  assert.ok(breeca.received.some((m) => m.t === 'player' && m.player.id === ericId && !m.player.online), 'the server marked Eric offline');
+  assert.ok(!breeca.received.some((m) => m.t === 'left' && m.id === ericId), 'Eric was not removed');
+  await waitForCrew(breeca, 2);
+  breeca.assertNoErrors();
 });

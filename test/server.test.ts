@@ -50,14 +50,14 @@ test('two clients in one room see each other move, then leave', async () => {
 
   const a = client(id);
   await once(a.ws, 'open');
-  a.send({ t: 'hello', name: 'Ann', avatar: '🦊', color: '#ff5d73' });
+  a.send({ t: 'hello', name: 'Breeca', avatar: '🦊', color: '#ff5d73' });
   const wa = (await a.waitFor((m) => m.t === 'welcome')) as Extract<ServerMsg, { t: 'welcome' }>;
 
   const b = client(id);
   await once(b.ws, 'open');
-  b.send({ t: 'hello', name: 'Bob', avatar: '🐸', color: '#3ddc84' });
+  b.send({ t: 'hello', name: 'Eric', avatar: '🐸', color: '#3ddc84' });
   const wb = (await b.waitFor((m) => m.t === 'welcome')) as Extract<ServerMsg, { t: 'welcome' }>;
-  assert.deepEqual(wb.players.map((p) => p.name).sort(), ['Ann', 'Bob']);
+  assert.deepEqual(wb.players.map((p) => p.name).sort(), ['Breeca', 'Eric']);
 
   a.send({ t: 'pos', lat: 34.01, lng: -118.49, acc: 6 });
   const moved = await b.waitFor((m) => m.t === 'player' && m.player.id === wa.you && m.player.pos !== null);
