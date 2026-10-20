@@ -27,6 +27,7 @@ What we noticed while using the app, in the order a user goes through it. One sh
 ### Toolbar: Mood, Flags, Talk, Names, Pause
 
 - [x] Mood sound kept repeating after setting a mood (PR #4).
+- [x] "Drag me onto the map" hint over Flags was unclear and cluttered the toolbar (PR #6).
 
 ### Tapping pins, places and flags on the map
 
