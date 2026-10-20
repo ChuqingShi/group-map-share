@@ -1,7 +1,7 @@
-# Plan: a 7-step test mission for first-time users
+# Plan: a 7-step first mission for first-time users
 
 ## Context
-The test mission (`STEPS` in `src/quest.ts`) is meant for someone opening Groupz for the first time, but its order doesn't match how people start using the app. It opens with "Set your mood", includes "close and reopen" (a check for developers), and one hint is out of date ("Leave in the toolbar"; Leave is now in Settings, and the toolbar has Pause). The new mission follows the path a complete beginner takes, from creating a room to leaving it, and covers as much of the app as possible.
+The previous mission (`STEPS` in `src/quest.ts`) is meant for someone opening Groupz for the first time, but its order doesn't match how people start using the app. It opens with "Set your mood", includes "close and reopen" (a check for developers), and one hint is out of date ("Leave in the toolbar"; Leave is now in Settings, and the toolbar has Pause). The new mission follows the path a complete beginner takes, from creating a room to leaving it, and covers as much of the app as possible.
 
 ## How a step ticks off today (the mechanism we reuse)
 
@@ -67,7 +67,7 @@ Cases:
 
 ## File changes
 1. **`src/quest.ts`**: new `STEP_IDS = ['setup', 'profile', 'invite', 'talk', 'flag', 'imin', 'leave']` and `STEPS` from the table. Old saved ids (`mood`, `reopen`) are dropped on load by the existing `isStep` filter.
-2. **`src/App.tsx`**: the check changes above, all in the "Test mission" block (≈ lines 324–342) plus `saveMyCard`.
+2. **`src/App.tsx`**: the check changes above, all in the mission-check block at the top of `RoomPage` (≈ lines 324–342) plus `saveMyCard`.
 3. **`src/Quest.tsx`**: intro text "Six quick things to try" → "Seven quick things to try". The chip, checklist and results email read `STEPS`.
 4. **`test/quest.test.ts`**, **`e2e/settings.e2e.ts`**: see below.
 5. **Docs, only where needed:** `docs/TESTING.md` (10b wording, new 10c, scenario counts), `README.md` (34 → 35 scenes), `docs/TODO.md` (ticked line with the PR). These lines are also edited on the unmerged `chore/post-hackathon-cleanup` branch, so they're updated there after this merges, to avoid merge conflicts.
@@ -101,7 +101,7 @@ What 10c protects: every step's check fires on the action its hint describes, in
 1. New worktree and branch from the latest `main` (`580cdce`): **`fix/redo-test-mission`** in `Oct17/group-map-share-redo-quest`. The chore checkout and its uncommitted `TODO.md` edit stay untouched.
 2. Save this plan in the repo as **`docs/FIRST_MISSION_PLAN.md`** (same UPPERCASE naming as the other docs), and add one row for it to the `docs/` table in `docs/FILE_INDEX.md`.
 3. Then the code and test changes above. Commit, push and open a PR as before (only when you say so).
-Suggested commit: `fix(quest): redo the test mission as seven first-time-user steps`
+Suggested commit: `fix(quest): redo the mission as seven first-time-user steps`
 
 ## Verification
 1. `npm run check`: typecheck, unit tests, and all e2e scenarios including updated 10b and new 10c.

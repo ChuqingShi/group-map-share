@@ -1,4 +1,4 @@
-// The test mission screens: a one-time intro per new build, a little progress chip, and the checklist.
+// The first mission screens: a one-time intro per new build, a little progress chip, and the checklist.
 import { useCallback, useEffect, useState } from 'react';
 import { STEPS, loadQuest, markDone, progress, resultsText, saveQuest, shouldShowIntro, type QuestState, type StepId } from './quest.ts';
 

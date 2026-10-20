@@ -22,7 +22,7 @@ const newIdentities = new RateWindow(10 * 60_000, 60);
 /** How many proxies sit in front of us and append to X-Forwarded-For. */
 const TRUSTED_HOPS = Math.max(1, Number(process.env.GMS_TRUSTED_HOPS) || 1);
 const MAX_SOCKETS = 2_000;
-/** Identifies this deploy, so the app can show its test mission once per new build. */
+/** Identifies this deploy, so the app can show its first mission once per new build. */
 const BUILD = process.env.GMS_BUILD || process.env.RENDER_GIT_COMMIT?.slice(0, 7) || Date.now().toString(36);
 /** How long a socket may sit without joining. Overridable so tests do not wait ten seconds. */
 const HELLO_TIMEOUT_MS = Number(process.env.GMS_HELLO_TIMEOUT_MS) || 10_000;

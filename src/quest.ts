@@ -1,4 +1,4 @@
-// The "test mission": a short checklist shown once per new build so a tester knows what to try.
+// The "first mission": a short checklist shown once per new build so a tester knows what to try.
 // Steps tick themselves off when the app sees them happen. Lives in localStorage, nothing is sent anywhere.
 
 export const STEP_IDS = ['setup', 'profile', 'invite', 'talk', 'flag', 'imin', 'leave'] as const;
