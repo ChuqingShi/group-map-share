@@ -2,6 +2,8 @@
 
 What each file in the project does. Entry points are marked **(entry)**.
 
+To go the other way, from something you see on screen to the code behind it, use `docs/COMPONENTS.md`.
+
 ## Root
 
 | File | What it does |
@@ -127,6 +129,7 @@ What each file in the project does. Entry points are marked **(entry)**.
 | `FILE_INDEX.md` | Table of every project file and what it does, grouped by folder, with entry points marked |
 | `TECH_STACK.md` | Every library, runtime, browser API and outside service, and which feature uses it |
 | `TODO.md` | Task list with checkboxes, ordered by the pages a user goes through |
+| `COMPONENTS.md` | Table of everything a user can see or tap, by page and screen area, with its code name and file; organizer-only parts marked |
 | `screenshot.png` | README screenshot |
 | `ci/ci.yml` | GitHub Actions CI workflow, parked here until moved to `.github/workflows/` |
 | `email/approve-request.html`, `email/preview.png` | HTML email template for PR-approval requests, and its preview |
