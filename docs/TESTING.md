@@ -6,7 +6,7 @@
 | `npm run typecheck` | `tsc` over `src`, `server`, `shared`, `test`. |
 | `npm run typecheck:e2e` | `tsc` over `e2e/` (Node only strips types, so this is what catches type errors there). |
 | `npm run e2e` | Builds the app, then runs `e2e/*.e2e.ts` in a real browser, one file at a time. |
-| `npm run check` | `typecheck`, `test`, `e2e`: everything CI runs. |
+| `npm run check` | `typecheck`, `typecheck:e2e`, `test`, `e2e`: everything CI runs. |
 
 Run one file or one scenario while working (after one `npm run build`):
 
