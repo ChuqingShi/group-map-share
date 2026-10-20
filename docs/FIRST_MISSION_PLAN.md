@@ -99,7 +99,7 @@ What 10c protects: every step's check fires on the action its hint describes, in
 
 ## Git, and saving this plan (done first)
 1. New worktree and branch from the latest `main` (`580cdce`): **`fix/redo-test-mission`** in `Oct17/group-map-share-redo-quest`. The chore checkout and its uncommitted `TODO.md` edit stay untouched.
-2. Save this plan in the repo as **`docs/TEST_MISSION_PLAN.md`** (same UPPERCASE naming as the other docs), and add one row for it to the `docs/` table in `docs/FILE_INDEX.md`.
+2. Save this plan in the repo as **`docs/FIRST_MISSION_PLAN.md`** (same UPPERCASE naming as the other docs), and add one row for it to the `docs/` table in `docs/FILE_INDEX.md`.
 3. Then the code and test changes above. Commit, push and open a PR as before (only when you say so).
 Suggested commit: `fix(quest): redo the test mission as seven first-time-user steps`
 

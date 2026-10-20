@@ -38,7 +38,7 @@ Limits live in `server/rooms.ts` and are all tested: 3 plans per player, 20 per 
 - **Typed moods**: `Mood = { id: preset | 'custom', emoji, label, note, at }` (`at` is when it was set; the client compares it to play the mood sound once per change); `cleanEmoji()` only accepts emoji parts. What you say sets the mood (`Summary.feeling` in `src/bubble.ts`).
 - **Talk plants flags by voice**: after the countdown it sends the bubble and mood, or plants and pings when the named place is found on the map, with an Undo toast. Not found: "Drop it on the map".
 - **iPhone touch**: no double tap zoom, no long press callout, a 3 px invisible halo around buttons, and a touchstart listener so `:active` shows. Not yet confirmed on a real iPhone (no simulator on the build machine).
-- **First mission**: `src/quest.ts`, seven steps for newcomers and testers (see `docs/TEST_MISSION_PLAN.md`), shown once per build (`/api/version`), steps tick themselves off.
+- **First mission**: `src/quest.ts`, seven steps for newcomers and testers (see `docs/FIRST_MISSION_PLAN.md`), shown once per build (`/api/version`), steps tick themselves off.
 
 ## Honest limits
 - Everything is passive and only while the app is open. A locked or closed phone gets nothing and sends nothing: web apps cannot track location in the background, and closed-app push needs stored subscriptions. Keep-screen-on helps while the app is open.
