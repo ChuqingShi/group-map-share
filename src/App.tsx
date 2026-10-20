@@ -322,10 +322,15 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
   const canPlant = !players.some((p) => p.organizer) || !!meP?.organizer;
 
   // Test mission: each step ticks itself off when we see it happen (ignored until the mission is started).
-  const resumedAtMount = useRef(Boolean(getEvent(roomId)?.profile)); // was already in this event on this device
+  // These also re-run when the mission starts, so a step done before tapping Start still counts.
+  const [nameChanged, setNameChanged] = useState(false); // a new name saved from my card: half of the profile step
   useEffect(() => {
-    if (meP?.mood) quest.done('mood');
-  }, [meP?.mood]);
+    if (live && meP?.pos) quest.done('setup'); // the server has my location, so location access was allowed
+    if (nameChanged && meP?.organizer) quest.done('profile');
+    if (players.length >= 2) quest.done('invite');
+    if (room.me && plans.some((p) => p.by === room.me)) quest.done('flag');
+    if (room.me && plans.some((p) => p.by === room.me && p.joined.some((id) => id !== room.me))) quest.done('imin');
+  }, [live, Boolean(meP?.pos), nameChanged, meP?.organizer, players.length, plans, room.me, quest.state]);
   // Compare when the mood was set, not the mood object: every location update re-sends my player as a new object.
   const moodAt = meP?.mood?.at ?? null;
   const lastMoodAt = useRef<number | null | undefined>(undefined);
@@ -333,13 +338,6 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
     if (lastMoodAt.current !== undefined && lastMoodAt.current !== moodAt) playSfx('mood');
     if (live) lastMoodAt.current = moodAt;
   }, [moodAt, live]);
-  useEffect(() => {
-    if (room.me && plans.some((p) => p.by === room.me)) quest.done('flag');
-    if (room.me && plans.some((p) => p.by !== room.me && p.joined.includes(room.me!))) quest.done('imin');
-  }, [plans, room.me]);
-  useEffect(() => {
-    if (live && resumedAtMount.current) quest.done('reopen');
-  }, [live]);
 
   // --- toasts and thought bubbles ------------------------------------------------
   const pushToast = useCallback((t: Omit<ToastItem, 'id' | 'until'>, ms = 6_000) => {
@@ -401,7 +399,7 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
   // Server notices (rate limits and so on).
   useEffect(() => {
     if (!room.notice) return;
-    pushToast({ kind: 'info', emoji: '⏳', text: room.notice });
+    pushToast({ kind: 'info', emoji: '⚠️', text: room.notice });
     room.clearNotice();
   }, [room.notice]);
 
@@ -514,7 +512,10 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
   };
   /** My name and contact line: tell the room, and remember them on this device (and for this event's reconnects). */
   const saveMyCard = ({ name, contact }: { name: string; contact: string }) => {
-    if (meP && name !== meP.name) room.send({ t: 'profile', name });
+    if (meP && name !== meP.name) {
+      room.send({ t: 'profile', name });
+      setNameChanged(true);
+    }
     if (meP && contact !== meP.contact) room.send({ t: 'contact', text: contact });
     setProfile((p) => {
       if (!p) return p;

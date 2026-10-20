@@ -399,7 +399,7 @@ button.chip { font: inherit; font-family: var(--head); font-weight: 900; font-si
 .quest-body { display: grid; gap: 2px; min-width: 0; }
 .quest-title { font: 900 0.85rem var(--head); letter-spacing: 0.04em; text-transform: uppercase; }
 .quest-step.is-done .quest-title { text-decoration: line-through; opacity: 0.75; }
-.quest-hint { font-size: 0.85rem; font-style: italic; line-height: 1.35; }
+.quest-hint { font-size: 0.85rem; font-style: italic; line-height: 1.35; white-space: pre-line; }
 .quest-done { margin: 0 0 12px; font-weight: 700; }
 .quest-replay { margin-top: 10px; }
 a.btn { display: inline-block; text-align: center; text-decoration: none; color: var(--ink); }

@@ -123,6 +123,7 @@ What each file in the project does. Entry points are marked **(entry)**.
 | ---- | ------------ |
 | `TESTING.md` | Testing guide |
 | `MEETUPS.md` | Design notes for moods, flags, trails, bubbles |
+| `TEST_MISSION_PLAN.md` | Plan for the 7-step test mission: each step, the code that ticks it, and how it is tested |
 | `FILE_INDEX.md` | Table of every project file and what it does, grouped by folder, with entry points marked |
 | `TECH_STACK.md` | Every library, runtime, browser API and outside service, and which feature uses it |
 | `TODO.md` | Task list with checkboxes, ordered by the pages a user goes through |

@@ -1,6 +1,6 @@
 // Scenario 10: the settings window holds the notify, keep-awake and voice toggles (and the legend), and nothing else does.
 import assert from 'node:assert/strict';
-import { SPOTS, closeSheet, eventually, openPlans, openSettings, openSheet, setToggle, setup, toggleState, waitForCrew } from './harness.ts';
+import { SPOTS, closeSheet, createPlan, eventually, leaveRoom, openPlans, openSettings, openSheet, setToggle, setup, toggleState, waitForCrew } from './harness.ts';
 
 const { scenario } = setup();
 
@@ -102,24 +102,72 @@ scenario('17b. an explicit Allow notifications button shows only while the brows
 });
 
 scenario('10b. test mission: replaying it from settings shows the progress chip on screen, just above the toolbar', async (s) => {
-  const ann = await s.player('Ann', SPOTS.ann);
-  await openSettings(ann);
-  await ann.tid('btn-quest-replay').click();
-  await closeSheet(ann, 'quest-panel');
+  const breeca = await s.player('Breeca', SPOTS.ann);
+  await openSettings(breeca);
+  await breeca.tid('btn-quest-replay').click();
+  await closeSheet(breeca, 'quest-panel');
 
-  const chip = ann.tid('btn-quest');
+  const chip = breeca.tid('btn-quest');
   await eventually(async () => assert.equal(await chip.isVisible(), true), { message: 'the chip is shown once the mission has started' });
   const box = (await chip.boundingBox())!;
-  const bar = (await ann.page.locator('.hud-bottom').boundingBox())!;
-  const viewport = ann.page.viewportSize()!;
+  const bar = (await breeca.page.locator('.hud-bottom').boundingBox())!;
+  const viewport = breeca.page.viewportSize()!;
   assert.ok(box.y >= 0 && box.y + box.height <= viewport.height, `the chip is inside the screen (top ${box.y}, height ${box.height})`);
   assert.ok(box.y + box.height <= bar.y, `the chip sits above the toolbar (chip bottom ${box.y + box.height}, toolbar top ${bar.y})`);
-  assert.match((await chip.textContent()) ?? '', /0\/6/);
+  // Breeca was already on the map with location shared, so "set up" counts as soon as the mission starts.
+  await eventually(async () => assert.match((await chip.textContent()) ?? '', /1\/7/), { message: 'the chip counts the set up step' });
 
-  // Setting a mood ticks the first step off.
-  await openSheet(ann, 'btn-mood', 'mood-sheet');
-  await ann.tid('mood-hungry').click();
-  await eventually(async () => assert.match((await chip.textContent()) ?? '', /1\/6/), { message: 'the chip counts the mood step' });
+  breeca.assertNoErrors();
+});
 
-  ann.assertNoErrors();
+scenario('10c. test mission: each of the seven steps ticks itself off when it is done, in mission order', async (s) => {
+  const breeca = await s.player('Breeca', SPOTS.ann);
+  const done = async () => ((await breeca.page.evaluate(() => JSON.parse(localStorage.getItem('gms-quest') ?? 'null')?.done ?? [])) as string[]).sort();
+  const expectDone = (ids: string[], message: string) => eventually(async () => assert.deepEqual(await done(), [...ids].sort()), { message });
+
+  // 1. Set up: Breeca is already on the map with location shared.
+  await openSettings(breeca);
+  await breeca.tid('btn-quest-replay').click();
+  await closeSheet(breeca, 'quest-panel');
+  await expectDone(['setup'], 'set up counts once you are on the map');
+
+  // 2. Profile needs both halves: organizer alone is not enough, a new name on the card completes it.
+  await openSettings(breeca);
+  await setToggle(breeca.tid('btn-organizer'), true);
+  await breeca.waitForMessage((m) => m.t === 'player' && m.player.id === breeca.id && m.player.organizer === true);
+  await closeSheet(breeca, 'settings-sheet');
+  assert.deepEqual(await done(), ['setup'], 'organizer without a name change does not finish the profile step');
+  await breeca.page.locator(`[data-testid="crew-avatar"][data-player-id="${breeca.id}"]`).click();
+  await breeca.tid('card-name-input').fill('Bree');
+  await breeca.tid('btn-card-save').click();
+  await closeSheet(breeca, 'person-card');
+  await expectDone(['setup', 'profile'], 'name change plus organizer finishes the profile step');
+
+  // 3. Invite: a friend joins.
+  const eric = await s.player('Eric', SPOTS.bob, { roomUrl: breeca.roomUrl });
+  await Promise.all([waitForCrew(breeca, 2), waitForCrew(eric, 2)]);
+  await expectDone(['setup', 'profile', 'invite'], 'a second person in the event counts as invited');
+
+  // 4. Talk.
+  await openSheet(breeca, 'btn-talk', 'talk-sheet');
+  await breeca.tid('talk-input').fill("I'm starving, let's get tacos");
+  await breeca.tid('talk-preview').waitFor({ state: 'visible' });
+  await breeca.tid('btn-talk-send').click();
+  await expectDone(['setup', 'profile', 'invite', 'talk'], 'sending something with Talk');
+
+  // 5. A flag of Breeca's (planting by drag is covered in scenario 12).
+  await createPlan(breeca, { kind: 'lunch', place: "Joe's Tacos" });
+  await expectDone(['setup', 'profile', 'invite', 'talk', 'flag'], 'planting a flag');
+
+  // 6. Eric says I'm in to Breeca's flag (Eric cannot plant one: Breeca is the only organizer).
+  await openPlans(eric);
+  await eric.tid('btn-plan-join').first().click();
+  await expectDone(['setup', 'profile', 'invite', 'talk', 'flag', 'imin'], "a friend saying I'm in to my flag");
+
+  // 7. Leave. The page moves on, but the mission is saved on the device.
+  await leaveRoom(breeca);
+  await expectDone(['setup', 'profile', 'invite', 'talk', 'flag', 'imin', 'leave'], 'leaving completes the mission');
+
+  breeca.assertNoErrors();
+  eric.assertNoErrors();
 });
