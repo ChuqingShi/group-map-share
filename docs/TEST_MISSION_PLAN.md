@@ -23,13 +23,13 @@ Two kinds of checks call `quest.done`:
 
 | # | id | Title | Hint | Kind | Check (all in `RoomPage`, `src/App.tsx`) |
 |---|---|---|---|---|---|
-| 1 | `setup` | 🎮 Set up | Create a room, pick your name and avatar, and allow location access when the browser asks. | state | `live && meP?.pos` |
-| 2 | `profile` | ⭐ Change your name and become an organizer | Tap your own picture to change your name, then in Settings ⚙️ switch on I'm an organizer. | state | `nameChanged && meP?.organizer` |
-| 3 | `invite` | 📲 Invite a friend | Tap Invite and have a friend scan the QR code. They show up on your map. | state | `players.length >= 2` |
-| 4 | `talk` | 🎙 Tell the crew how you feel | Tap Talk and say or type "I'm starving, let's get tacos", then Send. Your mood changes and a bubble pops up. | event | existing `quest.done('talk')` in the TalkSheet `onSend`/`onPlant` (≈ lines 731, 738) |
-| 5 | `flag` | 🚩 Drag a flag and ping the crew | Press and hold Flags, slide onto the map, let go, then tap Plant. Your friend gets pinged. | state | existing: `plans.some((p) => p.by === room.me)` |
-| 6 | `imin` | 🔔 Get your friend to say "I'm in" | Your friend taps I'm in on your flag's ping (or in their Flags list). A dotted trail leads them to it. | state | `plans.some((p) => p.by === room.me && p.joined.some((id) => id !== room.me))` |
-| 7 | `leave` | 🚪 Leave the event | Settings ⚙️, then Leave this event, tapped twice. You vanish for everyone and the event leaves your list. | event | existing `quest.done('leave')` in `leaveTap`, after `room.leave()` succeeds |
+| 1 | `setup` | 🎮 Get on the map | Create a room and allow location. | state | `live && meP?.pos` |
+| 2 | `profile` | ⭐ Edit your profile | Tap your picture → change your name → Save.<br>Then ⚙️ → I'm an organizer. | state | `nameChanged && meP?.organizer` |
+| 3 | `invite` | 📲 Invite a friend | ➕ Invite → a friend scans the QR code. | state | `players.length >= 2` |
+| 4 | `talk` | 🎙 Say how you feel | Talk → say "I'm starving, let's have some tacos" → Send. | event | existing `quest.done('talk')` in the TalkSheet `onSend`/`onPlant` (≈ lines 731, 738) |
+| 5 | `flag` | 🚩 Plant a flag | Hold Flags, drag it onto the map → Plant it. | state | existing: `plans.some((p) => p.by === room.me)` |
+| 6 | `imin` | 🔔 Get an "I'm in" | Your friend taps I'm in on your flag. | state | `plans.some((p) => p.by === room.me && p.joined.some((id) => id !== room.me))` |
+| 7 | `leave` | 🚪 Leave the event | ⚙️ → Leave this event → tap again. | event | existing `quest.done('leave')` in `leaveTap`, after `room.leave()` succeeds |
 
 ### Step 1: how "location allowed" is checked
 The chain from the browser's permission prompt to the server:
@@ -75,7 +75,7 @@ Cases:
 ## How the tests are designed
 
 ### Unit: `test/quest.test.ts` (pure logic, no browser)
-- Update fixtures to the new ids and titles (e.g. `markDone(s, 'flag')`, `resultsText` expects `[x] Set up` and `[ ] Leave the event`).
+- Update fixtures to the new ids and titles (e.g. `markDone(s, 'flag')`, `resultsText` expects `[x] Get on the map` and `[ ] Leave the event`).
 - **New test: old progress is cleaned up.** Saved state `{ done: ['mood', 'reopen', 'talk'] }` loads as `['talk']`. Protects people who started the old mission from a broken count after the deploy.
 - The existing "7 steps, each with icon/title/hint" and "ticked once, any order" tests keep working unchanged.
 

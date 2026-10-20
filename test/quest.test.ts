@@ -59,7 +59,7 @@ test('progress from the old six-step mission loads without its removed steps', (
 test('the results email lists every step with its state and the build id', () => {
   const text = resultsText(q({ done: ['setup'] }));
   assert.match(text, /build abc1234/);
-  assert.match(text, /\[x\] Set up/);
+  assert.match(text, /\[x\] Get on the map/);
   assert.match(text, /\[ \] Leave the event/);
   assert.equal(text.split('\n').filter((l) => l.startsWith('[')).length, STEPS.length);
 });

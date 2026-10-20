@@ -12,13 +12,13 @@ export interface QuestStep {
 }
 
 export const STEPS: readonly QuestStep[] = [
-  { id: 'setup', icon: '🎮', title: 'Set up', hint: 'Create a room, pick your name and avatar, and allow location access when the browser asks.' },
-  { id: 'profile', icon: '⭐', title: 'Change your name and become an organizer', hint: 'Tap your own picture to change your name, then in Settings ⚙️ switch on I\'m an organizer.' },
-  { id: 'invite', icon: '📲', title: 'Invite a friend', hint: 'Tap Invite and have a friend scan the QR code. They show up on your map.' },
-  { id: 'talk', icon: '🎙', title: 'Tell the crew how you feel', hint: 'Tap Talk and say or type "I\'m starving, let\'s get tacos", then Send. Your mood changes and a bubble pops up.' },
-  { id: 'flag', icon: '🚩', title: 'Drag a flag and ping the crew', hint: 'Press and hold Flags, slide onto the map, let go, then tap Plant. Your friend gets pinged.' },
-  { id: 'imin', icon: '🔔', title: 'Get your friend to say "I\'m in"', hint: 'Your friend taps I\'m in on your flag\'s ping (or in their Flags list). A dotted trail leads them to it.' },
-  { id: 'leave', icon: '🚪', title: 'Leave the event', hint: 'Settings ⚙️, then Leave this event, tapped twice. You vanish for everyone and the event leaves your list.' },
+  { id: 'setup', icon: '🎮', title: 'Get on the map', hint: 'Create a room and allow location.' },
+  { id: 'profile', icon: '⭐', title: 'Edit your profile', hint: 'Tap your picture → change your name → Save.\nThen ⚙️ → I\'m an organizer.' },
+  { id: 'invite', icon: '📲', title: 'Invite a friend', hint: '➕ Invite → a friend scans the QR code.' },
+  { id: 'talk', icon: '🎙', title: 'Say how you feel', hint: 'Talk → say "I\'m starving, let\'s have some tacos" → Send.' },
+  { id: 'flag', icon: '🚩', title: 'Plant a flag', hint: 'Hold Flags, drag it onto the map → Plant it.' },
+  { id: 'imin', icon: '🔔', title: 'Get an "I\'m in"', hint: 'Your friend taps I\'m in on your flag.' },
+  { id: 'leave', icon: '🚪', title: 'Leave the event', hint: '⚙️ → Leave this event → tap again.' },
 ];
 
 export interface QuestState {
