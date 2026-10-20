@@ -33,12 +33,12 @@ node --test --test-name-pattern="^4\." e2e/plans.e2e.ts
 | File | Scenarios |
 | --- | --- |
 | `smoke.e2e.ts` | 1 create, join, one avatar, no errors. 2 two people, leaving. |
-| `mood.e2e.ts` | 3 mood on pin and avatar, clearing. |
+| `mood.e2e.ts` | 3 mood on pin and avatar, clearing. 3b mood sound: one per mood change, none for location updates. |
 | `plans.e2e.ts` | 4 plan, ping, join from the toast, trails. 5 voice is passive until switched on in settings. |
 | `talk.e2e.ts` | 6 typed and spoken words become a bubble. 6b "make it a plan". |
 | `resilience.e2e.ts` | 7a ping rate limit. 7b reload keeps the plan. 7c hostile websocket input. |
 | `phone.e2e.ts` | 8 small phone (360x640): no sideways scroll, buttons on screen. |
-| `settings.e2e.ts` | 10 settings window toggles. |
+| `settings.e2e.ts` | 10 settings window toggles. 10b test mission chip on screen above the toolbar, counting steps. |
 | `events.e2e.ts` | 9a to 9e remembered events (reload, new page, leave, two events, server restart). 11 closing a page keeps the player. |
 
 Environment: `E2E_CHANNEL` (e.g. `chromium`, `msedge`), `E2E_EXECUTABLE_PATH`, `E2E_HEADED=1`, `E2E_ALLOW_NET=1`,
