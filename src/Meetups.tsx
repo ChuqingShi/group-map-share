@@ -338,7 +338,7 @@ export function SettingsSheet({ eventName, canRename, onRename, notif, notifCanA
         <span>🎵 Sound effects</span>
       </label>
       <button type="button" className="btn btn-ghost btn-big" data-testid="btn-legend" onClick={onLegend}>🗺️ Show the map legend</button>
-      <button type="button" className="btn btn-ghost btn-big quest-replay" data-testid="btn-quest-replay" onClick={onQuest}>🧪 Replay the test mission</button>
+      <button type="button" className="btn btn-ghost btn-big quest-replay" data-testid="btn-quest-replay" onClick={onQuest}>⏳ Replay the first mission</button>
       <button type="button" className="btn btn-danger btn-big leave" data-testid="btn-leave" onClick={onLeave}>
         {leaveArmed ? '🚪 Tap again to leave for good' : '🚪 Leave this event'}
       </button>

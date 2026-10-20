@@ -10,7 +10,7 @@ something happens in RoomPage (src/App.tsx)
   → quest.done('<id>')                       src/Quest.tsx:36  (useQuest)
   → ignored unless the mission was started   (prev.started), and only the first time
   → markDone() adds the id                   src/quest.ts
-  → saveQuest() writes localStorage "gms-quest" → chip "🧪 n/7" and checklist re-render
+  → saveQuest() writes localStorage "gms-quest" → chip "⏳ n/7" and checklist re-render
 ```
 
 Two kinds of checks call `quest.done`:

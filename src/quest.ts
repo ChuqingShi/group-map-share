@@ -82,5 +82,5 @@ export function progress(q: QuestState | null) {
 /** Plain-text results for the "send my results" email. */
 export function resultsText(q: QuestState): string {
   const lines = STEPS.map((s) => `${q.done.includes(s.id) ? '[x]' : '[ ]'} ${s.title}`);
-  return `Groupz test mission, build ${q.build}\n\n${lines.join('\n')}\n\nWhat felt great, what felt off:\n`;
+  return `Groupz first mission, build ${q.build}\n\n${lines.join('\n')}\n\nWhat felt great, what felt off:\n`;
 }

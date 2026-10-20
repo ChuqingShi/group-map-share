@@ -47,11 +47,11 @@ export function useQuest(build: string | null): QuestApi {
 
 export function QuestIntro({ build, onStart, onSkip }: { build: string; onStart: () => void; onSkip: () => void }) {
   return (
-    <div className="modal" role="dialog" aria-modal="true" aria-label="Test mission" data-testid="quest-intro">
+    <div className="modal" role="dialog" aria-modal="true" aria-label="First mission" data-testid="quest-intro">
       <div className="sheet quest-intro">
-        <p className="quest-tag">New build · {build}</p>
-        <h2>Test mission</h2>
-        <p>Seven quick things to try. Each one ticks itself off when the app sees you do it.</p>
+        <p className="quest-tag">Welcome · build {build}</p>
+        <h2>First mission</h2>
+        <p>Seven quick steps to learn Groupz. Each one ticks itself off as you go.</p>
         <ol className="quest-list">
           {STEPS.map((s) => (
             <li key={s.id}>
@@ -72,19 +72,19 @@ export function QuestIntro({ build, onStart, onSkip }: { build: string; onStart:
 export function QuestChip({ state, onClick }: { state: QuestState; onClick: () => void }) {
   const p = progress(state);
   return (
-    <button type="button" className={`quest-chip ${p.complete ? 'is-complete' : ''}`} data-testid="btn-quest" aria-label={`Test mission, ${p.done} of ${p.total} done`} onClick={onClick}>
-      {p.complete ? '🎉' : '🧪'} {p.done}/{p.total}
+    <button type="button" className={`quest-chip ${p.complete ? 'is-complete' : ''}`} data-testid="btn-quest" aria-label={`First mission, ${p.done} of ${p.total} done`} onClick={onClick}>
+      {p.complete ? '🎉' : '⏳'} {p.done}/{p.total}
     </button>
   );
 }
 
 export function QuestPanel({ state, onClose, onRestart }: { state: QuestState; onClose: () => void; onRestart: () => void }) {
   const p = progress(state);
-  const mailto = `mailto:kuhlmanne@gmail.com?subject=${encodeURIComponent('Groupz test results')}&body=${encodeURIComponent(resultsText(state))}`;
+  const mailto = `mailto:kuhlmanne@gmail.com?subject=${encodeURIComponent('Groupz feedback')}&body=${encodeURIComponent(resultsText(state))}`;
   return (
     <section className="sheet panel" data-testid="quest-panel">
       <header className="panel-head">
-        <h2>Test mission · {p.done}/{p.total}</h2>
+        <h2>First mission · {p.done}/{p.total}</h2>
         <button type="button" className="btn-icon" aria-label="Close" onClick={onClose}>✕</button>
       </header>
       <ol className="quest-steps">
@@ -102,12 +102,12 @@ export function QuestPanel({ state, onClose, onRestart }: { state: QuestState; o
         })}
       </ol>
       {p.complete ? (
-        <p className="quest-done">🎉 Mission complete! Tell Eric what felt great and what felt off.</p>
+        <p className="quest-done">🎉 Mission complete! Tell us what felt great and what felt off.</p>
       ) : (
         <p className="fineprint">Build {state.build}. Steps tick themselves off as you go.</p>
       )}
       <div className="controls">
-        <a className="btn btn-small" data-testid="btn-quest-send" href={mailto}>✉️ Send my results</a>
+        <a className="btn btn-small" data-testid="btn-quest-send" href={mailto}>✉️ Send feedback</a>
         <button type="button" className="btn btn-small btn-ghost" onClick={onRestart}>Start over</button>
       </div>
     </section>
