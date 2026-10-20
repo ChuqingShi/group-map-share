@@ -33,8 +33,8 @@ const FORBIDDEN_PORTS = new Set([8787, 8790, 5173, 8443]);
 export type Sim = readonly [lat: number, lng: number];
 /** A few spots on Santa Monica beach, about 50 to 150 m apart. */
 export const SPOTS = {
-  ann: [34.0094, -118.4965],
-  bob: [34.0099, -118.4958],
+  breeca: [34.0094, -118.4965],
+  eric: [34.0099, -118.4958],
   cat: [34.0089, -118.497],
 } as const satisfies Record<string, Sim>;
 
@@ -600,7 +600,7 @@ export async function newPlayer(browser: Browser, baseUrl: string, name: string,
           await doneButton.click(quick); // the invite sheet covers the join form
           continue;
         }
-        // Returning device: "Joining as Ann" has no name field, you just tap Join.
+        // Returning device: "Joining as Breeca" has no name field, you just tap Join.
         if (!(await nameInput.isVisible()) && (await tid('join-form').isVisible())) {
           if (goal !== 'joined') return;
           stats.joinFormsFilled += 1;

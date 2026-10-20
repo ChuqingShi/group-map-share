@@ -21,17 +21,17 @@ const clock = (start = 5_000_000) => {
 /** An event with two people, a mood, a contact line, an organizer, a flag, an RSVP, a no thanks and a suggestion. */
 function busyEvent(reg: RoomRegistry) {
   const room = reg.create('Dinner crew')!;
-  const a = reg.join(room, fakeConn(), { name: 'Ann', avatar: '🦊', color: '#ff5d73', organizer: true });
-  const b = reg.join(room, fakeConn(), { name: 'Bob', avatar: '🐸', color: '#3ddc84' });
+  const a = reg.join(room, fakeConn(), { name: 'Breeca', avatar: '🦊', color: '#ff5d73', organizer: true });
+  const b = reg.join(room, fakeConn(), { name: 'Eric', avatar: '🐸', color: '#3ddc84' });
   assert.ok('id' in a && 'id' in b);
   reg.updatePosition(room, a.id, 34.01, -118.49, 5);
   reg.setMood(room, a.id, 'hungry', 'so hungry');
-  reg.setContact(room, b.id, 'bob@example.com');
+  reg.setContact(room, b.id, 'eric@example.com');
   const plan = reg.createPlan(room, a.id, { kind: 'dinner', place: "Joe's Tacos", note: 'by the pier', lat: 34.011, lng: -118.491 })!;
   const c = reg.join(room, fakeConn(), { name: 'Cy', avatar: '🐙', color: '#4da3ff' });
   assert.ok('id' in c);
   reg.joinPlan(room, c.id, plan.id);
-  reg.suggestPlan(room, b.id, plan.id, 'Thai place', 'closer'); // also counts as Bob's no thanks
+  reg.suggestPlan(room, b.id, plan.id, 'Thai place', 'closer'); // also counts as Eric's no thanks
   const tokenA = room.members.get(a.id)!.token;
   return { room, a: a.id, b: b.id, c: c.id, plan, tokenA };
 }
@@ -40,7 +40,7 @@ test('a snapshot brings an event back with its people, flags and RSVPs, but neve
   const t = clock();
   const before = new RoomRegistry({ now: t.now });
   const { room, a, b, c, plan } = busyEvent(before);
-  assert.ok(room.members.get(a)!.player.pos, 'Ann had a position');
+  assert.ok(room.members.get(a)!.player.pos, 'Breeca had a position');
 
   const text = JSON.stringify(before.toSnapshot());
   assert.ok(!text.includes('34.01,') && !text.includes('"pos":{'), 'no position in the file');
@@ -50,17 +50,17 @@ test('a snapshot brings an event back with its people, flags and RSVPs, but neve
   const back = after.get(room.id)!;
   assert.equal(back.name, 'Dinner crew');
   assert.equal(back.members.size, 3);
-  const ann = back.members.get(a)!.player;
-  assert.equal(ann.name, 'Ann');
-  assert.equal(ann.organizer, true);
-  assert.equal(ann.mood?.id, 'hungry');
-  assert.equal(ann.pos, null);
-  assert.equal(ann.online, false);
-  assert.equal(back.members.get(b)!.player.contact, 'bob@example.com');
+  const breeca = back.members.get(a)!.player;
+  assert.equal(breeca.name, 'Breeca');
+  assert.equal(breeca.organizer, true);
+  assert.equal(breeca.mood?.id, 'hungry');
+  assert.equal(breeca.pos, null);
+  assert.equal(breeca.online, false);
+  assert.equal(back.members.get(b)!.player.contact, 'eric@example.com');
   const p = back.plans.get(plan.id)!;
   assert.equal(p.place, "Joe's Tacos");
-  assert.deepEqual(p.joined.sort(), [a, c].sort(), 'Ann and Cy are in');
-  assert.deepEqual(p.declined, [b], 'Bob said no thanks');
+  assert.deepEqual(p.joined.sort(), [a, c].sort(), 'Breeca and Cy are in');
+  assert.deepEqual(p.declined, [b], 'Eric said no thanks');
   assert.equal(p.suggestions.length, 1);
   assert.equal(p.suggestions[0].place, 'Thai place');
 });
@@ -74,13 +74,13 @@ test('after a restart people resume as themselves with their old token', () => {
   after.restore(JSON.parse(JSON.stringify(before.toSnapshot())));
   const back = after.get(room.id)!;
   const conn = fakeConn();
-  const res = after.join(back, conn, { name: 'Ann', avatar: '🦊', color: '#ff5d73', token: tokenA });
+  const res = after.join(back, conn, { name: 'Breeca', avatar: '🦊', color: '#ff5d73', token: tokenA });
   assert.deepEqual(res, { id: a }, 'same player id');
   const welcome = conn.inbox[0];
   assert.equal(welcome.t === 'welcome' && welcome.token, tokenA);
-  assert.equal(welcome.t === 'welcome' && welcome.plans.length, 1, 'her flag is still there');
+  assert.equal(welcome.t === 'welcome' && welcome.plans.length, 1, 'the flag is still there');
   assert.equal(welcome.t === 'welcome' && welcome.roomName, 'Dinner crew');
-  assert.equal(back.members.size, 3, 'no duplicate Ann');
+  assert.equal(back.members.size, 3, 'no duplicate Breeca');
 });
 
 test('people who never come back are still dropped on time, counted from when the event was saved', () => {

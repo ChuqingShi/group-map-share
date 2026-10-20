@@ -7,102 +7,102 @@ const { scenario } = setup();
 const TOGGLES = ['btn-notify', 'btn-awake', 'btn-voice', 'btn-sfx', 'btn-legend'];
 
 scenario('10. settings: the gear opens a window with notify, awake, voice and legend; voice is off by default', async (s) => {
-  const ann = await s.player('Ann', SPOTS.ann, { permissions: ['notifications'] });
-  const bob = await s.player('Bob', SPOTS.bob, { roomUrl: ann.roomUrl }); // no notification permission
-  await Promise.all([waitForCrew(ann, 2), waitForCrew(bob, 2)]);
+  const breeca = await s.player('Breeca', SPOTS.breeca, { permissions: ['notifications'] });
+  const eric = await s.player('Eric', SPOTS.eric, { roomUrl: breeca.roomUrl }); // no notification permission
+  await Promise.all([waitForCrew(breeca, 2), waitForCrew(eric, 2)]);
 
   // The plans panel no longer carries the toggles.
-  await openPlans(ann);
-  for (const id of TOGGLES) assert.equal(await ann.tid('plans-panel').locator(`[data-testid="${id}"]`).count(), 0, `${id} must not be in the plans panel`);
+  await openPlans(breeca);
+  for (const id of TOGGLES) assert.equal(await breeca.tid('plans-panel').locator(`[data-testid="${id}"]`).count(), 0, `${id} must not be in the plans panel`);
 
-  await openSettings(ann);
-  const sheet = ann.tid('settings-sheet');
+  await openSettings(breeca);
+  const sheet = breeca.tid('settings-sheet');
   for (const id of TOGGLES) assert.equal(await sheet.locator(`[data-testid="${id}"]`).count(), 1, `${id} is in the settings sheet`);
-  assert.equal(await toggleState(ann.tid('btn-voice')), false, 'voice is off by default');
+  assert.equal(await toggleState(breeca.tid('btn-voice')), false, 'voice is off by default');
 
   // Notify can be flipped when the browser permission is granted ...
-  assert.equal(await ann.tid('btn-notify').isDisabled(), false, 'notify is enabled with permission');
-  await setToggle(ann.tid('btn-notify'), true);
-  await eventually(async () => assert.equal(await toggleState(ann.tid('btn-notify')), true), { message: 'notify switched on' });
-  await setToggle(ann.tid('btn-notify'), false);
-  await eventually(async () => assert.equal(await toggleState(ann.tid('btn-notify')), false), { message: 'notify switched off' });
+  assert.equal(await breeca.tid('btn-notify').isDisabled(), false, 'notify is enabled with permission');
+  await setToggle(breeca.tid('btn-notify'), true);
+  await eventually(async () => assert.equal(await toggleState(breeca.tid('btn-notify')), true), { message: 'notify switched on' });
+  await setToggle(breeca.tid('btn-notify'), false);
+  await eventually(async () => assert.equal(await toggleState(breeca.tid('btn-notify')), false), { message: 'notify switched off' });
   // ... voice can be flipped on and off ...
-  await setToggle(ann.tid('btn-voice'), true);
-  await eventually(async () => assert.equal(await toggleState(ann.tid('btn-voice')), true), { message: 'voice switched on' });
-  await setToggle(ann.tid('btn-voice'), false);
-  await eventually(async () => assert.equal(await toggleState(ann.tid('btn-voice')), false), { message: 'voice switched off' });
+  await setToggle(breeca.tid('btn-voice'), true);
+  await eventually(async () => assert.equal(await toggleState(breeca.tid('btn-voice')), true), { message: 'voice switched on' });
+  await setToggle(breeca.tid('btn-voice'), false);
+  await eventually(async () => assert.equal(await toggleState(breeca.tid('btn-voice')), false), { message: 'voice switched off' });
   // ... sound effects are on by default and can be switched off and on ...
-  assert.equal(await toggleState(ann.tid('btn-sfx')), true, 'sound effects are on by default');
-  await setToggle(ann.tid('btn-sfx'), false);
-  await eventually(async () => assert.equal(await toggleState(ann.tid('btn-sfx')), false), { message: 'sfx switched off' });
-  await setToggle(ann.tid('btn-sfx'), true);
-  await eventually(async () => assert.equal(await toggleState(ann.tid('btn-sfx')), true), { message: 'sfx switched on' });
+  assert.equal(await toggleState(breeca.tid('btn-sfx')), true, 'sound effects are on by default');
+  await setToggle(breeca.tid('btn-sfx'), false);
+  await eventually(async () => assert.equal(await toggleState(breeca.tid('btn-sfx')), false), { message: 'sfx switched off' });
+  await setToggle(breeca.tid('btn-sfx'), true);
+  await eventually(async () => assert.equal(await toggleState(breeca.tid('btn-sfx')), true), { message: 'sfx switched on' });
   // ... and keep-awake can be tapped without breaking the page (headless Chrome may not grant a wake lock).
-  await ann.tid('btn-awake').click();
-  await closeSheet(ann, 'settings-sheet');
+  await breeca.tid('btn-awake').click();
+  await closeSheet(breeca, 'settings-sheet');
 
   // Without permission the notify toggle is disabled.
-  await openSettings(bob);
-  assert.equal(await bob.tid('btn-notify').isDisabled(), true, 'notify is disabled without permission');
+  await openSettings(eric);
+  assert.equal(await eric.tid('btn-notify').isDisabled(), true, 'notify is disabled without permission');
 
-  ann.assertNoErrors();
-  bob.assertNoErrors();
+  breeca.assertNoErrors();
+  eric.assertNoErrors();
 });
 
 scenario('17. rename the event: anyone can, everyone sees the new name, and once there is an organizer only organizers can', async (s) => {
-  const ann = await s.player('Ann', SPOTS.ann);
-  const bob = await s.player('Bob', SPOTS.bob, { roomUrl: ann.roomUrl });
-  await Promise.all([waitForCrew(ann, 2), waitForCrew(bob, 2)]);
+  const breeca = await s.player('Breeca', SPOTS.breeca);
+  const eric = await s.player('Eric', SPOTS.eric, { roomUrl: breeca.roomUrl });
+  await Promise.all([waitForCrew(breeca, 2), waitForCrew(eric, 2)]);
 
-  await openSettings(bob);
-  await bob.tid('event-rename-input').fill('Team lunch');
-  await bob.tid('btn-event-rename').click();
-  await eventually(async () => assert.match(await ann.tid('event-title').innerText(), /team lunch/i), { message: "Ann's title shows the new name" });
-  await closeSheet(bob, 'settings-sheet');
+  await openSettings(eric);
+  await eric.tid('event-rename-input').fill('Team lunch');
+  await eric.tid('btn-event-rename').click();
+  await eventually(async () => assert.match(await breeca.tid('event-title').innerText(), /team lunch/i), { message: "Breeca's title shows the new name" });
+  await closeSheet(eric, 'settings-sheet');
 
-  // Ann becomes an organizer: now Bob cannot rename.
-  await openSettings(ann);
-  await setToggle(ann.tid('btn-organizer'), true);
-  await closeSheet(ann, 'settings-sheet');
+  // Breeca becomes an organizer: now Eric cannot rename.
+  await openSettings(breeca);
+  await setToggle(breeca.tid('btn-organizer'), true);
+  await closeSheet(breeca, 'settings-sheet');
   await eventually(async () => {
-    await openSettings(bob);
-    assert.equal(await bob.tid('event-rename-input').count(), 0);
-    assert.equal(await bob.tid('rename-locked').count(), 1);
-  }, { message: 'Bob is locked out of renaming' });
-  await closeSheet(bob, 'settings-sheet');
+    await openSettings(eric);
+    assert.equal(await eric.tid('event-rename-input').count(), 0);
+    assert.equal(await eric.tid('rename-locked').count(), 1);
+  }, { message: 'Eric is locked out of renaming' });
+  await closeSheet(eric, 'settings-sheet');
 
   // The organizer can, and it sticks across a reload.
-  await openSettings(ann);
-  await ann.tid('event-rename-input').fill('Demo day');
-  await ann.tid('btn-event-rename').click();
-  await closeSheet(ann, 'settings-sheet');
-  await eventually(async () => assert.match(await bob.tid('event-title').innerText(), /demo day/i), { message: "Bob's title shows Demo day" });
-  await ann.page.reload();
-  await waitForCrew(ann, 2);
-  await eventually(async () => assert.match(await ann.tid('event-title').innerText(), /demo day/i), { message: 'the name survives a reload' });
+  await openSettings(breeca);
+  await breeca.tid('event-rename-input').fill('Demo day');
+  await breeca.tid('btn-event-rename').click();
+  await closeSheet(breeca, 'settings-sheet');
+  await eventually(async () => assert.match(await eric.tid('event-title').innerText(), /demo day/i), { message: "Eric's title shows Demo day" });
+  await breeca.page.reload();
+  await waitForCrew(breeca, 2);
+  await eventually(async () => assert.match(await breeca.tid('event-title').innerText(), /demo day/i), { message: 'the name survives a reload' });
 
-  ann.assertNoErrors();
-  bob.assertNoErrors();
+  breeca.assertNoErrors();
+  eric.assertNoErrors();
 });
 
 scenario('17b. an explicit Allow notifications button shows only while the browser has not been asked', async (s) => {
-  const ann = await s.player('Ann', SPOTS.ann, { permissions: ['notifications'] }); // already allowed
-  const bob = await s.player('Bob', SPOTS.bob, { roomUrl: ann.roomUrl }); // never asked
-  await Promise.all([waitForCrew(ann, 2), waitForCrew(bob, 2)]);
-  await openSettings(ann);
-  assert.equal(await ann.tid('btn-allow-notifications').count(), 0, 'already allowed: no button');
-  await closeSheet(ann, 'settings-sheet');
-  // Headless Chrome answers the join-time prompt by itself; make Bob look like a browser that has not been asked.
-  await bob.page.evaluate(() => Object.defineProperty(Notification, 'permission', { get: () => 'default', configurable: true }));
-  await openSettings(bob);
-  assert.equal(await bob.tid('btn-allow-notifications').count(), 1, 'never asked: the button is there');
-  assert.equal(await bob.tid('btn-allow-notifications').isEnabled(), true);
-  ann.assertNoErrors();
-  bob.assertNoErrors();
+  const breeca = await s.player('Breeca', SPOTS.breeca, { permissions: ['notifications'] }); // already allowed
+  const eric = await s.player('Eric', SPOTS.eric, { roomUrl: breeca.roomUrl }); // never asked
+  await Promise.all([waitForCrew(breeca, 2), waitForCrew(eric, 2)]);
+  await openSettings(breeca);
+  assert.equal(await breeca.tid('btn-allow-notifications').count(), 0, 'already allowed: no button');
+  await closeSheet(breeca, 'settings-sheet');
+  // Headless Chrome answers the join-time prompt by itself; make Eric look like a browser that has not been asked.
+  await eric.page.evaluate(() => Object.defineProperty(Notification, 'permission', { get: () => 'default', configurable: true }));
+  await openSettings(eric);
+  assert.equal(await eric.tid('btn-allow-notifications').count(), 1, 'never asked: the button is there');
+  assert.equal(await eric.tid('btn-allow-notifications').isEnabled(), true);
+  breeca.assertNoErrors();
+  eric.assertNoErrors();
 });
 
 scenario('10b. test mission: replaying it from settings shows the progress chip on screen, just above the toolbar', async (s) => {
-  const breeca = await s.player('Breeca', SPOTS.ann);
+  const breeca = await s.player('Breeca', SPOTS.breeca);
   await openSettings(breeca);
   await breeca.tid('btn-quest-replay').click();
   await closeSheet(breeca, 'quest-panel');
@@ -121,7 +121,7 @@ scenario('10b. test mission: replaying it from settings shows the progress chip 
 });
 
 scenario('10c. test mission: each of the seven steps ticks itself off when it is done, in mission order', async (s) => {
-  const breeca = await s.player('Breeca', SPOTS.ann);
+  const breeca = await s.player('Breeca', SPOTS.breeca);
   const done = async () => ((await breeca.page.evaluate(() => JSON.parse(localStorage.getItem('gms-quest') ?? 'null')?.done ?? [])) as string[]).sort();
   const expectDone = (ids: string[], message: string) => eventually(async () => assert.deepEqual(await done(), [...ids].sort()), { message });
 
@@ -144,7 +144,7 @@ scenario('10c. test mission: each of the seven steps ticks itself off when it is
   await expectDone(['setup', 'profile'], 'name change plus organizer finishes the profile step');
 
   // 3. Invite: a friend joins.
-  const eric = await s.player('Eric', SPOTS.bob, { roomUrl: breeca.roomUrl });
+  const eric = await s.player('Eric', SPOTS.eric, { roomUrl: breeca.roomUrl });
   await Promise.all([waitForCrew(breeca, 2), waitForCrew(eric, 2)]);
   await expectDone(['setup', 'profile', 'invite'], 'a second person in the event counts as invited');
 

@@ -15,7 +15,7 @@ async function previewText(p: Player): Promise<string> {
   return text;
 }
 
-/** Bob's (or Ann's) screen shows the sent bubble as a thought bubble and as a "bubble" toast. */
+/** Eric's (or Breeca's) screen shows the sent bubble as a thought bubble and as a "bubble" toast. */
 async function expectBubbleSeen(viewer: Player, sender: Player, previewed: string): Promise<BubbleMsg> {
   const msg = await viewer.waitForMessage<BubbleMsg>((m) => m.t === 'bubble' && m.from === sender.id);
   assert.ok(msg.text.length > 0 && [...msg.text].length <= BUBBLE_MAX, `bubble text fits ${BUBBLE_MAX} characters: "${msg.text}"`);
@@ -33,51 +33,51 @@ async function expectBubbleSeen(viewer: Player, sender: Player, previewed: strin
 }
 
 scenario('6. talk: typed words become a short bubble on the other screen, and so does speech', async (s) => {
-  const ann = await s.player('Ann', SPOTS.ann);
-  const bob = await s.player('Bob', SPOTS.bob, { roomUrl: ann.roomUrl });
-  await Promise.all([waitForCrew(ann, 2), waitForCrew(bob, 2)]);
+  const breeca = await s.player('Breeca', SPOTS.breeca);
+  const eric = await s.player('Eric', SPOTS.eric, { roomUrl: breeca.roomUrl });
+  await Promise.all([waitForCrew(breeca, 2), waitForCrew(eric, 2)]);
 
   // --- typed ---
   const typed = "let's go eat at joe's tacos";
-  await openSheet(ann, 'btn-talk', 'talk-sheet');
-  await ann.tid('talk-input').fill(typed);
+  await openSheet(breeca, 'btn-talk', 'talk-sheet');
+  await breeca.tid('talk-input').fill(typed);
   let preview!: string;
-  await eventually(async () => (preview = await previewText(ann)), { message: 'talk preview for typed words' });
+  await eventually(async () => (preview = await previewText(breeca)), { message: 'talk preview for typed words' });
   assert.notEqual(normalise(preview), normalise(typed), 'the preview is boiled down, not the exact words');
   assert.ok([...preview].length <= BUBBLE_MAX + 8, `short enough for a bubble: "${preview}"`);
   assert.match(preview, /joe/i, 'the place survives the boiling down');
-  await ann.tid('btn-talk-send').click();
-  const sent = await expectBubbleSeen(bob, ann, preview);
+  await breeca.tid('btn-talk-send').click();
+  const sent = await expectBubbleSeen(eric, breeca, preview);
   assert.notEqual(normalise(sent.text), normalise(typed));
 
-  // --- spoken, through the stubbed recogniser (Bob speaks, so Ann's 3 s bubble cooldown is not in the way) ---
-  await bob.setTranscript('meet me at the pier in ten minutes');
-  await openSheet(bob, 'btn-talk', 'talk-sheet');
-  await bob.tid('btn-talk-mic').click();
+  // --- spoken, through the stubbed recogniser (Eric speaks, so Breeca's 3 s bubble cooldown is not in the way) ---
+  await eric.setTranscript('meet me at the pier in ten minutes');
+  await openSheet(eric, 'btn-talk', 'talk-sheet');
+  await eric.tid('btn-talk-mic').click();
   await eventually(
-    async () => assert.ok(((await bob.page.evaluate(() => (window as unknown as { __recognitionStarts: number }).__recognitionStarts)) ?? 0) >= 1),
+    async () => assert.ok(((await eric.page.evaluate(() => (window as unknown as { __recognitionStarts: number }).__recognitionStarts)) ?? 0) >= 1),
     { message: 'speech recognition started' },
   );
   let spokenPreview!: string;
-  await eventually(async () => (spokenPreview = await previewText(bob)), { message: 'talk preview for speech' });
+  await eventually(async () => (spokenPreview = await previewText(eric)), { message: 'talk preview for speech' });
   assert.notEqual(normalise(spokenPreview), normalise('meet me at the pier in ten minutes'));
-  await bob.tid('btn-talk-send').click();
-  await expectBubbleSeen(ann, bob, spokenPreview);
+  await eric.tid('btn-talk-send').click();
+  await expectBubbleSeen(breeca, eric, spokenPreview);
 
-  ann.assertNoErrors();
-  bob.assertNoErrors();
+  breeca.assertNoErrors();
+  eric.assertNoErrors();
 });
 
 scenario('6b. talk: a place name offers to turn the words into a plan', async (s) => {
-  const ann = await s.player('Ann', SPOTS.ann);
-  await waitForCrew(ann, 1);
-  await openSheet(ann, 'btn-talk', 'talk-sheet');
-  await ann.tid('talk-input').fill("let's go eat at joe's tacos");
-  await eventually(async () => assert.ok(await ann.tid('btn-talk-plan').isVisible()), { message: '"make it a plan" button' });
-  await ann.tid('btn-talk-plan').click();
+  const breeca = await s.player('Breeca', SPOTS.breeca);
+  await waitForCrew(breeca, 1);
+  await openSheet(breeca, 'btn-talk', 'talk-sheet');
+  await breeca.tid('talk-input').fill("let's go eat at joe's tacos");
+  await eventually(async () => assert.ok(await breeca.tid('btn-talk-plan').isVisible()), { message: '"make it a plan" button' });
+  await breeca.tid('btn-talk-plan').click();
   // Next comes the flag-drop step or the plan form itself.
-  await eventually(async () => assert.ok((await ann.tid('drop-banner').isVisible()) || (await ann.tid('plan-form').isVisible())), {
+  await eventually(async () => assert.ok((await breeca.tid('drop-banner').isVisible()) || (await breeca.tid('plan-form').isVisible())), {
     message: 'drop banner or plan form after "make it a plan"',
   });
-  ann.assertNoErrors();
+  breeca.assertNoErrors();
 });
