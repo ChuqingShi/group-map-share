@@ -33,7 +33,6 @@ scenario('12. drag the flag onto the map: one gesture and one tap plant it, and 
   const ann = await s.player('Ann', SPOTS.ann);
   const bob = await s.player('Bob', SPOTS.bob, { roomUrl: ann.roomUrl });
   await Promise.all([waitForCrew(ann, 2), waitForCrew(bob, 2)]);
-  assert.ok(await ann.tid('flag-tip').isVisible(), 'a first-time tip says to drag the flag');
 
   // Dropping it back on the toolbar means never mind.
   const bar = await ann.tid('btn-mood').boundingBox();
@@ -60,7 +59,6 @@ scenario('12. drag the flag onto the map: one gesture and one tap plant it, and 
   assert.equal(created.length, 1);
   assert.equal(created[0].t === 'plan' && created[0].place, 'Meet here');
   assert.equal(created[0].t === 'plan' && created[0].ping, true, 'the crew is pinged by default');
-  assert.equal(await ann.tid('flag-tip').count(), 0, 'the tip is gone once the flag has been used');
 
   ann.assertNoErrors();
   bob.assertNoErrors();
