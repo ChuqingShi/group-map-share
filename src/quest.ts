@@ -1,7 +1,7 @@
 // The "test mission": a short checklist shown once per new build so a tester knows what to try.
 // Steps tick themselves off when the app sees them happen. Lives in localStorage, nothing is sent anywhere.
 
-export const STEP_IDS = ['mood', 'talk', 'flag', 'imin', 'reopen', 'leave'] as const;
+export const STEP_IDS = ['setup', 'profile', 'invite', 'talk', 'flag', 'imin', 'leave'] as const;
 export type StepId = (typeof STEP_IDS)[number];
 
 export interface QuestStep {
@@ -12,12 +12,13 @@ export interface QuestStep {
 }
 
 export const STEPS: readonly QuestStep[] = [
-  { id: 'mood', icon: '😋', title: 'Set your mood', hint: 'Mood in the toolbar, then tap one. Your crew sees a badge on your pic.' },
-  { id: 'talk', icon: '🎙', title: 'Say something', hint: 'Talk in the toolbar. Speak or type "let\'s go eat at Joe\'s Tacos", then Send.' },
-  { id: 'flag', icon: '🚩', title: 'Plant a flag and ping the crew', hint: 'Drag the flag onto the map (or Flags, then Plant a flag) and tap Plant. If the event has an organizer, only organizers can.' },
-  { id: 'imin', icon: '🔔', title: 'Say "I\'m in" to a friend\'s flag', hint: 'Needs a second phone: a friend scans your QR and plants a flag. Tap I\'m in on their toast and watch your treasure trail appear.' },
-  { id: 'reopen', icon: '🔁', title: 'Close the app, then reopen it', hint: 'You should land right back in the same event, no form.' },
-  { id: 'leave', icon: '🚪', title: 'Leave the event', hint: 'Leave in the toolbar, tapped twice. You vanish for everyone, and the event leaves your list.' },
+  { id: 'setup', icon: '🎮', title: 'Set up', hint: 'Create a room, pick your name and avatar, and allow location access when the browser asks.' },
+  { id: 'profile', icon: '⭐', title: 'Change your name and become an organizer', hint: 'Tap your own picture to change your name, then in Settings ⚙️ switch on I\'m an organizer.' },
+  { id: 'invite', icon: '📲', title: 'Invite a friend', hint: 'Tap Invite and have a friend scan the QR code. They show up on your map.' },
+  { id: 'talk', icon: '🎙', title: 'Tell the crew how you feel', hint: 'Tap Talk and say or type "I\'m starving, let\'s get tacos", then Send. Your mood changes and a bubble pops up.' },
+  { id: 'flag', icon: '🚩', title: 'Drag a flag and ping the crew', hint: 'Press and hold Flags, slide onto the map, let go, then tap Plant. Your friend gets pinged.' },
+  { id: 'imin', icon: '🔔', title: 'Get your friend to say "I\'m in"', hint: 'Your friend taps I\'m in on your flag\'s ping (or in their Flags list). A dotted trail leads them to it.' },
+  { id: 'leave', icon: '🚪', title: 'Leave the event', hint: 'Settings ⚙️, then Leave this event, tapped twice. You vanish for everyone and the event leaves your list.' },
 ];
 
 export interface QuestState {

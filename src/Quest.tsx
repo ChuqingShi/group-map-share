@@ -51,7 +51,7 @@ export function QuestIntro({ build, onStart, onSkip }: { build: string; onStart:
       <div className="sheet quest-intro">
         <p className="quest-tag">New build · {build}</p>
         <h2>Test mission</h2>
-        <p>Six quick things to try. Each one ticks itself off when the app sees you do it.</p>
+        <p>Seven quick things to try. Each one ticks itself off when the app sees you do it.</p>
         <ol className="quest-list">
           {STEPS.map((s) => (
             <li key={s.id}>

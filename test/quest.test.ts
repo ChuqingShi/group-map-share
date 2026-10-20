@@ -27,8 +27,8 @@ test('steps are ticked once, in any order, and progress counts them', () => {
   let s = q();
   s = markDone(s, 'flag');
   s = markDone(s, 'flag');
-  s = markDone(s, 'mood');
-  assert.deepEqual(s.done, ['flag', 'mood']);
+  s = markDone(s, 'talk');
+  assert.deepEqual(s.done, ['flag', 'talk']);
   assert.deepEqual(progress(s), { done: 2, total: STEP_IDS.length, complete: false });
   for (const id of STEP_IDS) s = markDone(s, id);
   assert.equal(progress(s).complete, true);
@@ -42,19 +42,24 @@ test('every step has an icon, a title and a hint', () => {
 
 test('saved state round trips, and corrupt storage is ignored without throwing', () => {
   const s = memory();
-  saveQuest(q({ done: ['mood', 'talk'] }), s);
-  assert.deepEqual(loadQuest(s)?.done, ['mood', 'talk']);
+  saveQuest(q({ done: ['setup', 'talk'] }), s);
+  assert.deepEqual(loadQuest(s)?.done, ['setup', 'talk']);
   for (const raw of ['nope', '{}', '[]', 'null', '{"build":5}']) assert.equal(loadQuest(memory({ 'gms-quest': raw })), null, raw);
-  const dirty = loadQuest(memory({ 'gms-quest': JSON.stringify({ build: 'x', started: true, done: ['mood', 'mood', 'hack', 7] }) }));
-  assert.deepEqual(dirty?.done, ['mood'], 'unknown and duplicate steps dropped');
+  const dirty = loadQuest(memory({ 'gms-quest': JSON.stringify({ build: 'x', started: true, done: ['talk', 'talk', 'hack', 7] }) }));
+  assert.deepEqual(dirty?.done, ['talk'], 'unknown and duplicate steps dropped');
   assert.equal(loadQuest(null), null);
   assert.doesNotThrow(() => saveQuest(q(), { getItem: () => null, setItem: () => { throw new Error('quota'); } }));
 });
 
+test('progress from the old six-step mission loads without its removed steps', () => {
+  const old = memory({ 'gms-quest': JSON.stringify({ build: 'x', started: true, done: ['mood', 'reopen', 'talk', 'imin'] }) });
+  assert.deepEqual(loadQuest(old)?.done, ['talk', 'imin'], 'mood and reopen are gone; steps that still exist are kept');
+});
+
 test('the results email lists every step with its state and the build id', () => {
-  const text = resultsText(q({ done: ['mood'] }));
+  const text = resultsText(q({ done: ['setup'] }));
   assert.match(text, /build abc1234/);
-  assert.match(text, /\[x\] Set your mood/);
+  assert.match(text, /\[x\] Set up/);
   assert.match(text, /\[ \] Leave the event/);
   assert.equal(text.split('\n').filter((l) => l.startsWith('[')).length, STEPS.length);
 });
