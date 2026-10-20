@@ -6,7 +6,7 @@ What we noticed while using the app, in the order a user goes through it. One sh
 
 - [x] Small print was centered and hard to read (PR #3).
 - [ ] Privacy small print is too long.
-- [ ] Test mission popup shows up for everyone on first open. Should real users see it?
+- [x] First mission popup read like a tester's checklist; now welcomes newcomers and testers (PR #8).
 
 ## 2. Join page (`JoinScreen`)
 
@@ -33,9 +33,10 @@ What we noticed while using the app, in the order a user goes through it. One sh
 
 - [ ]
 
-### Things that pop up by themselves (toasts, test mission chip)
+### Things that pop up by themselves (toasts, first mission chip)
 
-- [x] Test mission chip never showed up; it sat above the top of the screen (PR #5).
+- [x] First mission chip never showed up; it sat above the top of the screen (PR #5).
+- [x] Mission steps were out of order and wordy (PR #8).
 
 ### Leaving
 
@@ -57,6 +58,7 @@ What we noticed while using the app, in the order a user goes through it. One sh
 - [ ] Automatic checks on GitHub (CI) are not switched on.
 - [ ] One test relies on a library that isn't listed in `package.json`.
 - [ ] Test events disappear every time the dev server restarts.
+- [x] `npm run check` skipped the e2e type check, so typos in e2e files slipped through (PR #7).
 
 ## Maybe later
 

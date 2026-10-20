@@ -68,8 +68,8 @@ To go the other way, from something you see on screen to the code behind it, use
 | `PersonCard.tsx` | Card shown when tapping a person |
 | `PlaceCard.tsx` | Card shown when tapping a restaurant/cafe/bar |
 | `FlagDrag.tsx` | Flag button: tap for list, drag onto the map to plant |
-| `Quest.tsx` | Test-mission screens (intro, progress chip, checklist) |
-| `quest.ts` | Test-mission state and logic |
+| `Quest.tsx` | First-mission screens (intro, progress chip, checklist) |
+| `quest.ts` | First-mission steps, state and logic |
 | `styles.css` | Global app styles (retro game-manual look) |
 
 ### Device features (no network)
@@ -125,7 +125,7 @@ To go the other way, from something you see on screen to the code behind it, use
 | ---- | ------------ |
 | `TESTING.md` | Testing guide |
 | `MEETUPS.md` | Design notes for moods, flags, trails, bubbles |
-| `TEST_MISSION_PLAN.md` | Plan for the 7-step test mission: each step, the code that ticks it, and how it is tested |
+| `TEST_MISSION_PLAN.md` | Plan for the 7-step first mission: each step, the code that ticks it, and how it is tested |
 | `FILE_INDEX.md` | Table of every project file and what it does, grouped by folder, with entry points marked |
 | `TECH_STACK.md` | Every library, runtime, browser API and outside service, and which feature uses it |
 | `TODO.md` | Task list with checkboxes, ordered by the pages a user goes through |

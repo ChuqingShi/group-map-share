@@ -38,7 +38,7 @@ node --test --test-name-pattern="^4\." e2e/plans.e2e.ts
 | `talk.e2e.ts` | 6 typed and spoken words become a bubble. 6b "make it a plan". |
 | `resilience.e2e.ts` | 7a ping rate limit. 7b reload keeps the plan. 7c hostile websocket input. 7d an oversized frame only drops that socket. |
 | `phone.e2e.ts` | 8 small phone (360x640): no sideways scroll, buttons on screen. 8b a long event name shrinks to fit. |
-| `settings.e2e.ts` | 10 settings window toggles. 10b test mission chip on screen above the toolbar, counting steps. 17 rename the event (organizers only once there is one). 17b Allow notifications button only before the browser has asked. |
+| `settings.e2e.ts` | 10 settings window toggles. 10b first mission chip on screen above the toolbar, at 1/7 right after Replay. 10c all seven first-mission steps tick themselves off. 17 rename the event (organizers only once there is one). 17b Allow notifications button only before the browser has asked. |
 | `events.e2e.ts` | 9a to 9e remembered events (reload, new page, leave, two events, server restart). 11 closing a page keeps the player. |
 | `gestures.e2e.ts` | 12 drag the flag onto the map to plant it. 13 typed moods and recent chips. 14 organizers: only they plant flags. 14b organizer checkbox on the join form. |
 | `cards.e2e.ts` | 15 person card from a picture, name or pin. 15b edit your own name and contact. 16 no thanks and suggest somewhere else. |

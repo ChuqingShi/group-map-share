@@ -21,7 +21,7 @@ Notes:
 | Fine print | Privacy note | `.fineprint` | `src/App.tsx`, `src/styles.css` |
 | **Pop up** | | | |
 | Welcome back | Takes you back into your latest event | `Message`, `consumeAutoResume` | `src/App.tsx` |
-| Test mission popup | Once per new deploy, over any page | `QuestIntro`, `shouldShowIntro` | `src/Quest.tsx`, `src/quest.ts` |
+| First mission popup | Once per new deploy, over any page | `QuestIntro`, `shouldShowIntro` | `src/Quest.tsx`, `src/quest.ts` |
 
 ## 2. Join page (`JoinScreen` in `src/App.tsx`)
 
@@ -53,7 +53,7 @@ Notes:
 | ↳ Speak pings out loud | Switch spoken announcements | `btn-voice` | `src/Meetups.tsx`, `src/voice.ts` |
 | ↳ Sound effects | Switch sounds | `btn-sfx` | `src/Meetups.tsx`, `src/sfx.ts` |
 | ↳ 🗺️ Show the map legend | What the map colors mean | `btn-legend`, `Legend` | `src/Meetups.tsx`, `src/App.tsx` |
-| ↳ 🧪 Replay the test mission | Test mission checklist | `btn-quest-replay`, `QuestPanel` (`panel === 'quest'`) | `src/Meetups.tsx`, `src/Quest.tsx` |
+| ↳ ⏳ Replay the first mission | First mission checklist | `btn-quest-replay`, `QuestPanel` (`panel === 'quest'`) | `src/Meetups.tsx`, `src/Quest.tsx` |
 | ↳ Leave this event | Tap twice, then "You left the room" | `btn-leave`, `leaveTap` | `src/Meetups.tsx`, `src/App.tsx` |
 | ↳ Fine print | "Alerts and location only work while the app is open…" | `.fineprint` in `SettingsSheet` | `src/Meetups.tsx` |
 | **Crew strip** | | | |
@@ -86,7 +86,7 @@ Notes:
 | Pause / Share | Toggle: stop or restart sending your location | `btn-share`, `sharing` | `src/App.tsx` |
 | **Pop up** | | | |
 | Toasts | Joins, flags, bubbles; flag toasts have I'm in, No thanks, 💡 Suggest (opens "How about…?"), Show me, 📍 Google Maps | `Toasts` | `src/Crew.tsx` |
-| Test mission chip | Progress chip; tap for the checklist | `QuestChip` → `QuestPanel` | `src/Quest.tsx` |
+| First mission chip | ⏳ progress chip; tap for the checklist | `QuestChip` → `QuestPanel` | `src/Quest.tsx` |
 | Location warning | Location blocked or unavailable | `GeoBanner` | `src/App.tsx` |
 
 ## 4. End page (`Gone`, `Message` in `src/App.tsx`)
