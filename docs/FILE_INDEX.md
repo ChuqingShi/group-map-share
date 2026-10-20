@@ -2,6 +2,8 @@
 
 What each file in the project does. Entry points are marked **(entry)**.
 
+To go the other way, from something you see on screen to the code behind it, use `docs/COMPONENTS.md`.
+
 ## Root
 
 | File | What it does |
@@ -66,8 +68,8 @@ What each file in the project does. Entry points are marked **(entry)**.
 | `PersonCard.tsx` | Card shown when tapping a person |
 | `PlaceCard.tsx` | Card shown when tapping a restaurant/cafe/bar |
 | `FlagDrag.tsx` | Flag button: tap for list, drag onto the map to plant |
-| `Quest.tsx` | Test-mission screens (intro, progress chip, checklist) |
-| `quest.ts` | Test-mission state and logic |
+| `Quest.tsx` | First-mission screens (intro, progress chip, checklist) |
+| `quest.ts` | First-mission steps, state and logic |
 | `styles.css` | Global app styles (retro game-manual look) |
 
 ### Device features (no network)
@@ -123,10 +125,11 @@ What each file in the project does. Entry points are marked **(entry)**.
 | ---- | ------------ |
 | `TESTING.md` | Testing guide |
 | `MEETUPS.md` | Design notes for moods, flags, trails, bubbles |
-| `TEST_MISSION_PLAN.md` | Plan for the 7-step test mission: each step, the code that ticks it, and how it is tested |
+| `FIRST_MISSION_PLAN.md` | Plan for the 7-step first mission: each step, the code that ticks it, and how it is tested |
 | `FILE_INDEX.md` | Table of every project file and what it does, grouped by folder, with entry points marked |
 | `TECH_STACK.md` | Every library, runtime, browser API and outside service, and which feature uses it |
 | `TODO.md` | Task list with checkboxes, ordered by the pages a user goes through |
+| `COMPONENTS.md` | Table of everything a user can see or tap, by page and screen area, with its code name and file; organizer-only parts marked |
 | `screenshot.png` | README screenshot |
 | `ci/ci.yml` | GitHub Actions CI workflow, parked here until moved to `.github/workflows/` |
 | `email/approve-request.html`, `email/preview.png` | HTML email template for PR-approval requests, and its preview |

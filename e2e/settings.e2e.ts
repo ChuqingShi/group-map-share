@@ -101,7 +101,7 @@ scenario('17b. an explicit Allow notifications button shows only while the brows
   eric.assertNoErrors();
 });
 
-scenario('10b. test mission: replaying it from settings shows the progress chip on screen, just above the toolbar', async (s) => {
+scenario('10b. first mission: replaying it from settings shows the progress chip on screen, just above the toolbar', async (s) => {
   const breeca = await s.player('Breeca', SPOTS.breeca);
   await openSettings(breeca);
   await breeca.tid('btn-quest-replay').click();
@@ -120,7 +120,7 @@ scenario('10b. test mission: replaying it from settings shows the progress chip 
   breeca.assertNoErrors();
 });
 
-scenario('10c. test mission: each of the seven steps ticks itself off when it is done, in mission order', async (s) => {
+scenario('10c. first mission: each of the seven steps ticks itself off when it is done, in mission order', async (s) => {
   const breeca = await s.player('Breeca', SPOTS.breeca);
   const done = async () => ((await breeca.page.evaluate(() => JSON.parse(localStorage.getItem('gms-quest') ?? 'null')?.done ?? [])) as string[]).sort();
   const expectDone = (ids: string[], message: string) => eventually(async () => assert.deepEqual(await done(), [...ids].sort()), { message });

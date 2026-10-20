@@ -380,7 +380,7 @@ button.chip { font: inherit; font-family: var(--head); font-weight: 900; font-si
 .customize summary { cursor: pointer; padding: 10px 0; font: 900 0.8rem var(--head); letter-spacing: 0.06em; text-transform: uppercase; }
 .customize .picker { margin-top: 6px; }
 
-/* ---------- test mission ---------- */
+/* ---------- first mission ---------- */
 .quest-chip {
   position: absolute; z-index: 5; left: 15px; bottom: calc(max(15px, env(safe-area-inset-bottom)) + 90px);
   min-height: 40px; padding: 6px 12px; border: 3px solid var(--ink); border-radius: 0; background: var(--cream);

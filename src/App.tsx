@@ -40,7 +40,7 @@ export default function App() {
   useEffect(() => {
     autoResume.current = false;
   }, []);
-  // Which build is the server running? A new build shows the test mission once.
+  // Which build is the server running? A new build shows the first mission once.
   const [build, setBuild] = useState<string | null>(null);
   useEffect(() => {
     fetch('/api/version').then((r) => r.json()).then((b: { build?: string }) => setBuild(b.build ?? null), () => {});
@@ -321,7 +321,7 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
   // Flags: everyone plants, unless somebody in the event ticked organizer; then only organizers do.
   const canPlant = !players.some((p) => p.organizer) || !!meP?.organizer;
 
-  // Test mission: each step ticks itself off when we see it happen (ignored until the mission is started).
+  // First mission: each step ticks itself off when we see it happen (ignored until the mission is started).
   // These also re-run when the mission starts, so a step done before tapping Start still counts.
   const [nameChanged, setNameChanged] = useState(false); // a new name saved from my card: half of the profile step
   useEffect(() => {

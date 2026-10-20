@@ -26,7 +26,7 @@ Contact info on your card is entirely optional.
 - **Talk.** Say "let's go eat at Joe's Tacos": a thought bubble, your mood, and a flag if the place is on the map.
 - **Cards.** Tap anyone's picture or name for their mood, optional contact line and flags. You can edit your own.
 - **Organizers.** Tick "I'm an organizer" when you join; while anyone has, only organizers plant flags or rename the event.
-- Sound effects, notifications, keep-screen-on and a built-in test mission, all in Settings.
+- Sound effects, notifications, keep-screen-on and a built-in first mission for newcomers, all in Settings.
 
 ## Tech stack
 
@@ -77,7 +77,7 @@ Add `?sim` to a URL to fake GPS (`?sim=LAT,LNG` to start elsewhere); open two wi
 ```bash
 npm run typecheck
 npm test        # unit and server tests
-npm run e2e     # builds, then 32 scenes in two phone-sized Chromes (about two minutes)
+npm run e2e     # builds, then 35 scenes in two phone-sized Chromes (about two minutes)
 ```
 
 Phones need HTTPS for location; `localhost` counts. On iPhone, add the page to the Home Screen for notifications.
