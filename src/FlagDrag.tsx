@@ -1,9 +1,7 @@
 // The toolbar's flag button: tap it for the list of flags, or press and drag it onto the map to plant one right there.
 // One gesture and one tap (to confirm) is the whole job. Built on pointer events so a finger, a pen and a mouse all work.
 import { useRef, useState, type PointerEvent } from 'react';
-import { store } from './safeStorage.ts';
 
-const TIP_KEY = 'gms-flag-tip-seen';
 /** How far the finger must travel before a press becomes a drag (a shaky tap must stay a tap). */
 const DRAG_SLOP_PX = 12;
 
@@ -18,13 +16,6 @@ export function FlagButton({ count, canPlant, onTap, onDrop }: {
   const start = useRef<{ x: number; y: number; id: number } | null>(null);
   const dragged = useRef(false);
   const [at, setAt] = useState<{ x: number; y: number } | null>(null);
-  const [tip, setTip] = useState(() => canPlant && store.get(TIP_KEY) === null);
-
-  const seenTip = () => {
-    if (!tip) return;
-    setTip(false);
-    store.set(TIP_KEY, '1');
-  };
 
   const onDown = (e: PointerEvent<HTMLButtonElement>) => {
     if (!canPlant || !e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0)) return;
@@ -37,7 +28,6 @@ export function FlagButton({ count, canPlant, onTap, onDrop }: {
     if (!s || e.pointerId !== s.id) return;
     if (!dragged.current && Math.hypot(e.clientX - s.x, e.clientY - s.y) < DRAG_SLOP_PX) return;
     dragged.current = true;
-    seenTip();
     setAt({ x: e.clientX, y: e.clientY });
   };
   const finish = (e: PointerEvent<HTMLButtonElement>, cancelled: boolean) => {
@@ -69,17 +59,11 @@ export function FlagButton({ count, canPlant, onTap, onDrop }: {
             dragged.current = false; // the click that follows a drag is not a tap
             return;
           }
-          seenTip();
           onTap();
         }}
       >
         <span className="tool-icon">🚩{count > 0 && <span className="tool-count">{count}</span>}</span>
         <span className="tool-label">Flags</span>
-        {tip && canPlant && !at && (
-          <span className="flag-tip" role="note" data-testid="flag-tip">
-            Drag me onto the map
-          </span>
-        )}
       </button>
       {at && (
         <div className="flag-ghost" data-testid="flag-ghost" style={{ left: at.x, top: at.y }} aria-hidden="true">

@@ -430,12 +430,6 @@ button.chip { flex: 1 1 0; min-width: 0; max-width: none; }
 /* ---------- the flag you can drag ---------- */
 .tool-flag { position: relative; touch-action: none; }
 .tool-flag.is-dragging { opacity: 0.55; }
-.flag-tip {
-  position: absolute; bottom: calc(100% + 12px); left: 50%; translate: -50% 0; white-space: nowrap; pointer-events: none;
-  background: var(--ink); color: var(--cream); border: 2px solid var(--gold); padding: 5px 10px;
-  font: 900 0.68rem var(--head); letter-spacing: 0.08em; text-transform: uppercase; animation: bob 1.4s ease-in-out infinite;
-}
-.flag-tip::after { content: ''; position: absolute; top: 100%; left: 50%; translate: -50% 0; border: 6px solid transparent; border-top-color: var(--gold); }
 .flag-ghost { position: fixed; z-index: 60; width: 0; height: 0; pointer-events: none; }
 .flag-ghost-ring {
   position: absolute; left: -20px; top: -20px; width: 40px; height: 40px; border-radius: 50%;
@@ -475,8 +469,6 @@ button, summary, [role='button'], .pin, .xmark, .player {
 .organizer-check input { width: 22px; height: 22px; flex: none; margin-top: 1px; accent-color: var(--gold); }
 .organizer-check em { font-style: italic; opacity: 0.85; }
 .crew-org { position: absolute; left: -8px; top: -8px; width: 22px; height: 22px; border-radius: 50%; background: var(--gold); border: 2px solid var(--ink); display: grid; place-items: center; font-size: 0.7rem; line-height: 1; }
-/* The drag tip sits above the round Talk button's rim, not behind it. */
-.flag-tip { bottom: calc(100% + 50px); }
 
 /* ---------- person card, suggestions ---------- */
 .card-head { display: flex; align-items: center; gap: 12px; min-width: 0; }
