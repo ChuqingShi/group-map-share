@@ -326,12 +326,13 @@ function RoomPage({ roomId, onExit, quest }: { roomId: string; onExit: () => voi
   useEffect(() => {
     if (meP?.mood) quest.done('mood');
   }, [meP?.mood]);
-  const lastMood = useRef<unknown>(undefined);
+  // Compare when the mood was set, not the mood object: every location update re-sends my player as a new object.
+  const moodAt = meP?.mood?.at ?? null;
+  const lastMoodAt = useRef<number | null | undefined>(undefined);
   useEffect(() => {
-    const m = meP?.mood ?? null;
-    if (lastMood.current !== undefined && lastMood.current !== m) playSfx('mood');
-    if (live) lastMood.current = m;
-  }, [meP?.mood, live]);
+    if (lastMoodAt.current !== undefined && lastMoodAt.current !== moodAt) playSfx('mood');
+    if (live) lastMoodAt.current = moodAt;
+  }, [moodAt, live]);
   useEffect(() => {
     if (room.me && plans.some((p) => p.by === room.me)) quest.done('flag');
     if (room.me && plans.some((p) => p.by !== room.me && p.joined.includes(room.me!))) quest.done('imin');
