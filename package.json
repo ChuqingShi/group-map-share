@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit -p .",
     "typecheck:e2e": "tsc --noEmit -p e2e",
     "e2e": "npm run build && node --test --test-concurrency=1 e2e/*.e2e.ts",
-    "check": "npm run typecheck && npm test && npm run e2e"
+    "check": "npm run typecheck && npm run typecheck:e2e && npm test && npm run e2e"
   },
   "engines": {
     "node": "24.x"
