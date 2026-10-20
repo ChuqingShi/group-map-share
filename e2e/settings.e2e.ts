@@ -1,6 +1,6 @@
 // Scenario 10: the settings window holds the notify, keep-awake and voice toggles (and the legend), and nothing else does.
 import assert from 'node:assert/strict';
-import { SPOTS, closeSheet, eventually, openPlans, openSettings, setToggle, setup, toggleState, waitForCrew } from './harness.ts';
+import { SPOTS, closeSheet, eventually, openPlans, openSettings, openSheet, setToggle, setup, toggleState, waitForCrew } from './harness.ts';
 
 const { scenario } = setup();
 
@@ -99,4 +99,27 @@ scenario('17b. an explicit Allow notifications button shows only while the brows
   assert.equal(await bob.tid('btn-allow-notifications').isEnabled(), true);
   ann.assertNoErrors();
   bob.assertNoErrors();
+});
+
+scenario('10b. test mission: replaying it from settings shows the progress chip on screen, just above the toolbar', async (s) => {
+  const ann = await s.player('Ann', SPOTS.ann);
+  await openSettings(ann);
+  await ann.tid('btn-quest-replay').click();
+  await closeSheet(ann, 'quest-panel');
+
+  const chip = ann.tid('btn-quest');
+  await eventually(async () => assert.equal(await chip.isVisible(), true), { message: 'the chip is shown once the mission has started' });
+  const box = (await chip.boundingBox())!;
+  const bar = (await ann.page.locator('.hud-bottom').boundingBox())!;
+  const viewport = ann.page.viewportSize()!;
+  assert.ok(box.y >= 0 && box.y + box.height <= viewport.height, `the chip is inside the screen (top ${box.y}, height ${box.height})`);
+  assert.ok(box.y + box.height <= bar.y, `the chip sits above the toolbar (chip bottom ${box.y + box.height}, toolbar top ${bar.y})`);
+  assert.match((await chip.textContent()) ?? '', /0\/6/);
+
+  // Setting a mood ticks the first step off.
+  await openSheet(ann, 'btn-mood', 'mood-sheet');
+  await ann.tid('mood-hungry').click();
+  await eventually(async () => assert.match((await chip.textContent()) ?? '', /1\/6/), { message: 'the chip counts the mood step' });
+
+  ann.assertNoErrors();
 });
