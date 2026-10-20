@@ -36,10 +36,14 @@ node --test --test-name-pattern="^4\." e2e/plans.e2e.ts
 | `mood.e2e.ts` | 3 mood on pin and avatar, clearing. 3b mood sound: one per mood change, none for location updates. |
 | `plans.e2e.ts` | 4 plan, ping, join from the toast, trails. 5 voice is passive until switched on in settings. |
 | `talk.e2e.ts` | 6 typed and spoken words become a bubble. 6b "make it a plan". |
-| `resilience.e2e.ts` | 7a ping rate limit. 7b reload keeps the plan. 7c hostile websocket input. |
-| `phone.e2e.ts` | 8 small phone (360x640): no sideways scroll, buttons on screen. |
-| `settings.e2e.ts` | 10 settings window toggles. 10b test mission chip on screen above the toolbar, counting steps. |
+| `resilience.e2e.ts` | 7a ping rate limit. 7b reload keeps the plan. 7c hostile websocket input. 7d an oversized frame only drops that socket. |
+| `phone.e2e.ts` | 8 small phone (360x640): no sideways scroll, buttons on screen. 8b a long event name shrinks to fit. |
+| `settings.e2e.ts` | 10 settings window toggles. 10b test mission chip on screen above the toolbar, counting steps. 17 rename the event (organizers only once there is one). 17b Allow notifications button only before the browser has asked. |
 | `events.e2e.ts` | 9a to 9e remembered events (reload, new page, leave, two events, server restart). 11 closing a page keeps the player. |
+| `gestures.e2e.ts` | 12 drag the flag onto the map to plant it. 13 typed moods and recent chips. 14 organizers: only they plant flags. 14b organizer checkbox on the join form. |
+| `cards.e2e.ts` | 15 person card from a picture, name or pin. 15b edit your own name and contact. 16 no thanks and suggest somewhere else. |
+| `maps.e2e.ts` | 18 Google Maps link in the ping, plans list and person card. |
+| `persist.e2e.ts` | 19 a redeploy does not end the event. 19b nor does a crash. |
 
 Environment: `E2E_CHANNEL` (e.g. `chromium`, `msedge`), `E2E_EXECUTABLE_PATH`, `E2E_HEADED=1`, `E2E_ALLOW_NET=1`,
 `E2E_ROOT` (another checkout that has `dist/`). If Google Chrome is missing the harness tries Chromium, Edge and

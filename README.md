@@ -77,7 +77,7 @@ Add `?sim` to a URL to fake GPS (`?sim=LAT,LNG` to start elsewhere); open two wi
 ```bash
 npm run typecheck
 npm test        # unit and server tests
-npm run e2e     # builds, then 32 scenes in two phone-sized Chromes (about two minutes)
+npm run e2e     # builds, then 34 scenes in two phone-sized Chromes (about two minutes)
 ```
 
 Phones need HTTPS for location; `localhost` counts. On iPhone, add the page to the Home Screen for notifications.
